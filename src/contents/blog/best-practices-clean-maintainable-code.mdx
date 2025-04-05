@@ -1,0 +1,216 @@
+---
+title: 'Best Practices for Writing Clean and Maintainable Code'
+publishedAt: '2023-01-02'
+lastUpdated: '2025-04-05'
+description: 'A practical guide to using Tailwind Typography plugin for beautiful, well-formatted content.'
+banner: 'https://ibs-data-storage.s3.amazonaws.com/p/b/blog/best-practices-clean-maintainable-code/best-practices-clean-maintainable-code-0.jpg'
+tags: 'code-quality,tailwind,css'
+slug: 'best-practices-clean-maintainable-code'
+---
+
+# The Tailwind Typography Struggle Is Real
+
+Let's start with something we've all experienced: trying to style content-heavy pages with Tailwind can be a real pain. 😅 Whether it's a blog post, documentation, or any rich text content, getting the typography just right has traditionally required tons of custom CSS and an eye for design details.
+
+Here's the thing – Tailwind intentionally removes all default browser styling from elements like headings, paragraphs, and lists. This is super helpful when building UI components (no more fighting with browser defaults!), but creates a challenge when you're working with content from a CMS or markdown files.
+
+We get this complaint all the time:
+
+> Why is Tailwind removing the default styles on my `h1` elements? How do I disable this? What do you mean I lose all the other base styles too?
+
+I understand the frustration! But simply turning off Tailwind's base styles isn't actually what you want. You don't want browser defaults for your dashboard UI elements, and you definitely don't want unstyled content in your blog posts – you want them looking polished and professional.
+
+## The Solution: @tailwindcss/typography Plugin
+
+This is where the `@tailwindcss/typography` plugin comes in – it's our answer to this exact problem. It gives you what you actually need without any downsides.
+
+The plugin adds a simple `prose` class that you can apply to any block of HTML content to transform it into a beautifully formatted document:
+
+```html
+<article className="prose">
+  <h1>Garlic bread with cheese: What the science tells us</h1>
+  <p>
+    For years parents have espoused the health benefits of eating garlic bread
+    with cheese to their children, with the food earning such an iconic status
+    in our culture that kids will often dress up as warm, cheesy loaf for
+    Halloween.
+  </p>
+  <p>
+    But a recent study shows that the celebrated appetizer may be linked to a
+    series of rabies cases springing up around the country.
+  </p>
+</article>
+```
+
+Want to dive deeper into the plugin's features? [Check out the full documentation](https://github.com/tailwindcss/typography/blob/master/README.md).
+
+## Typography Demo: See It In Action
+
+What follows is essentially a typography playground showing how various elements look with the plugin. I've included all the common HTML elements you'd find in content-rich pages.
+
+Honestly speaking, having a comprehensive visual reference is crucial for a few key reasons:
+
+1. We want everything to look good right out of the box
+2. That's actually the whole point of the plugin – zero-config typography
+3. A three-item list just looks more complete than a two-item list, don't you think?
+
+## Typography Should Feel Natural
+
+Creating good typography should feel effortless. When done right, readers don't even notice it – they just enjoy the content.
+
+As a wise developer once told me:
+
+> Typography is pretty important if you don't want your stuff to look like trash. Make it good then it won't be bad.
+
+And of course, images should look good by default too:
+
+<S3Img
+  src='https://ibs-data-storage.s3.amazonaws.com/p/b/blog/best-practices-clean-maintainable-code/best-practices-clean-maintainable-code-1.jpg'
+  width='718'
+  height='404'
+  alt='Image'
+  sizes='100vw'
+/>
+
+*The image above shows a beautiful photograph that demonstrates how images render with the typography plugin.*
+
+Lorem ipsum text isn't just random gibberish – it has classical Latin roots dating back over 2000 years!
+
+Let's see how unordered lists look:
+
+- Here's our first item in the list
+- Keeping things concise for this example
+- We'll explore more complex lists later
+
+## Headings Hierarchy: Getting It Just Right
+
+### Handling Stacked Headings
+
+Sometimes you'll have headings right next to each other. In those cases, managing the spacing becomes critical – you typically want stacked headings closer together than when a heading follows a paragraph.
+
+### After Paragraphs, Headings Need Space
+
+When a heading follows a paragraph (like this one), we need a bit more breathing room. Now, let's look at more complex list structures:
+
+- **Complex lists with headings inside them**
+
+  I've found this pattern super useful for documentation. It creates visual hierarchy within list items, but getting the spacing right between paragraphs, headings, and list items can be tricky.
+  
+  Having multiple paragraphs within a list item adds another layer of complexity. The typography plugin handles this beautifully, but it's one of those details you might not appreciate until you've struggled with it manually.
+
+- **Lists need at least two items**
+
+  That's just how lists work! A single-item list isn't really a list. This second item helps show realistic spacing and styling in action.
+
+- **Three items feel complete**
+
+  There's something satisfying about a three-item list. It provides enough examples to establish a pattern while not becoming overwhelming.
+
+Note: After a complex list, it's a good idea to include a closing paragraph. Jumping straight to another heading can feel abrupt.
+
+## Code Blocks Should Look Good Too
+
+Most developers will probably use [highlight.js](https://highlightjs.org/) or [Prism](https://prismjs.com/) for syntax highlighting, but even without those, code blocks should be readable.
+
+Here's what a default `tailwind.config.js` file looks like:
+
+```js
+module.exports = {
+  purge: [],
+  theme: {
+    extend: {},
+  },
+  variants: {},
+  plugins: [],
+};
+```
+
+The typography plugin gives you nice monospaced fonts, appropriate padding, and a subtle background – all the essentials for readable code.
+
+### Nested Lists: Proceed With Caution
+
+Nested lists are tricky – there's a reason why platforms like Medium don't even allow them. But since we know developers will use them anyway, let's make sure they work:
+
+1. **Nested lists should be used sparingly**
+   - They often create visual clutter rather than organization
+   - This applies to UI navigation as well – flatter is usually better
+   - The same principle applies to your code organization
+2. **Here's our second top-level item**
+   - Two levels of nesting is usually the practical limit
+   - Three levels deep becomes difficult to scan
+   - Four levels? Please don't do that to your readers!
+3. **Three items creates visual balance**
+   - Again, avoid deep nesting when possible
+   - Your readers will thank you
+   - I'm still not happy we had to style this
+
+The most frustrating thing about Markdown lists is how the HTML gets generated. List items (`<li>`) only get a child `<p>` tag when they contain multiple paragraphs, leading to inconsistent spacing:
+
+- **Here's a nested list example**
+
+  With a second paragraph inside the first item.
+
+  - These items won't have `<p>` tags
+  - Because they're single-line items
+
+- **But this second top-level item will have paragraphs**
+
+  This creates spacing inconsistencies that are hard to solve with CSS.
+
+  - This nested item has a `<p>` tag because I've added a second line below
+  
+    This is that second line I mentioned
+
+  - And another item to complete the list
+
+- A final item without nesting, for good measure
+
+## Other HTML Elements That Need Styling
+
+Links often get overlooked, but they're crucial. We've styled them with a darker gray instead of the traditional blue – like [this link to Tailwind's website](https://tailwindcss.com). It feels more modern, don't you think?
+
+Tables are also covered by the typography plugin:
+
+| Wrestler                | Origin       | Finisher           |
+| ----------------------- | ------------ | ------------------ |
+| Bret "The Hitman" Hart  | Calgary, AB  | Sharpshooter       |
+| Stone Cold Steve Austin | Austin, TX   | Stone Cold Stunner |
+| Randy Savage            | Sarasota, FL | Elbow Drop         |
+| Vader                   | Boulder, CO  | Vader Bomb         |
+| Razor Ramon             | Chuluota, FL | Razor's Edge       |
+
+Inline code should also look good, like when I mention `<span>` elements or tell you about `@tailwindcss/typography`.
+
+### Sometimes I Even Use `code` in Headings
+
+Even though it's tricky to style, the backtick approach works well. You might also need to put `code` inside [links](https://github.com/tailwindcss/docs).
+
+#### H4 Headings: Use Sparingly
+
+We don't recommend going deeper than H4 in your content hierarchy. There's a reason Medium only supports two heading levels – it forces clearer structure.
+
+H4 elements are styled to be the same size as body text, just with different weight. Going smaller than that becomes problematic for readability.
+
+### Stacked Headings Need Careful Spacing
+
+#### Even When Using H4 Elements
+
+The plugin handles these edge cases gracefully, ensuring good vertical rhythm throughout your content.
+
+## GitHub Flavored Markdown Support
+
+We've also added support for GitHub Flavored Markdown using `remark-gfm`, which gives you a few extra features:
+
+- Autolinked URLs like www.example.com or https://example.com convert to links automatically
+- Email addresses like contact@example.com also get autolinked
+- This makes content creation more efficient without extra markup
+
+## Typography Takeaways
+
+1. The `@tailwindcss/typography` plugin solves the content styling problem in Tailwind
+2. Apply the `prose` class to any content block for beautiful typography
+3. All common HTML elements are styled thoughtfully out of the box
+4. The plugin handles edge cases like nested lists and stacked headings
+5. You can customize styles further while maintaining the strong foundation
+
+Source code for the typography plugin is [available on GitHub](https://github.com/tailwindcss/typography) if you want to explore how it works or contribute.
