@@ -11,7 +11,7 @@ slug: 'flappy-fusion-unity-game'
 
 # Building Flappy Fusion: Our Unity Game Dev Journey
 
-Hey there! 👋 Today I'm excited to share how our team (Bharath, Thanush, and myself, Dinesh) built **"Flappy Fusion"** – our modern spin on the classic Flappy Bird game. Let's dive into the nuts and bolts of this project, from organization to code!
+Hey there! 👋 Today I'm excited to share how our team (Thanush, Dinesh, and myself, Bharath) built **"Flappy Fusion"** – our modern spin on the classic Flappy Bird game. Let's dive into the nuts and bolts of this project, from organization to code!
 
 ## What's Flappy Fusion?
 
@@ -26,6 +26,7 @@ When working in a team, good organization is absolutely crucial. Here's how we s
 Let's start with our folder structure – something that saved us countless headaches during development!
 
 #### 1. Fonts Folder
+
 This is where all typography assets live. Keeping fonts separate makes them easy to find and apply consistently.
 
 <S3Img
@@ -36,9 +37,10 @@ This is where all typography assets live. Keeping fonts separate makes them easy
   height={360}
 />
 
-*Screenshot showing our fonts folder organization*
+_Screenshot showing our fonts folder organization_
 
 #### 2. Materials Folder
+
 For any looping backgrounds, we use materials with textures applied to them:
 
 ```
@@ -54,9 +56,10 @@ For any looping backgrounds, we use materials with textures applied to them:
   height={360}
 />
 
-*Our materials folder containing scrolling background assets*
+_Our materials folder containing scrolling background assets_
 
 #### 3. Prefabs Folder
+
 This is where reusable game objects like our pipe obstacles live:
 
 <S3Img
@@ -67,9 +70,10 @@ This is where reusable game objects like our pipe obstacles live:
   height={360}
 />
 
-*Prefab folder where we store our integrated pipe obstacles*
+_Prefab folder where we store our integrated pipe obstacles_
 
 #### 4. Scenes Folder
+
 Flappy Bird has only one level, but we've structured our project to accommodate multiple levels if needed:
 
 <S3Img
@@ -80,9 +84,10 @@ Flappy Bird has only one level, but we've structured our project to accommodate 
   height={360}
 />
 
-*Scene folder showing our main game level*
+_Scene folder showing our main game level_
 
 #### 5. Scripts Folder
+
 The brain of our operation! All project scripts are kept here:
 
 <S3Img
@@ -93,9 +98,10 @@ The brain of our operation! All project scripts are kept here:
   height={300}
 />
 
-*Script folder showing our game's core functionality files*
+_Script folder showing our game's core functionality files_
 
 #### 6. Sprites Folder
+
 All visual assets including images and videos are neatly organized here:
 
 <S3Img
@@ -106,7 +112,7 @@ All visual assets including images and videos are neatly organized here:
   height={200}
 />
 
-*Sprites folder containing our game's visual elements*
+_Sprites folder containing our game's visual elements_
 
 Note: Having this clear folder structure was absolutely essential for our team collaboration. It prevented asset conflicts and made it easy for everyone to find what they needed!
 
@@ -135,7 +141,7 @@ public class gameManager : MonoBehaviour
         Application.targetFrameRate = 60;  // Lock to 60fps for consistent gameplay
         Pause();                           // Start in paused state
     }
-    
+
     public void Play() {
         // Reset game state
         score = 0;
@@ -153,7 +159,7 @@ public class gameManager : MonoBehaviour
             Destroy(pipes[i].gameObject);
         }
     }
-    
+
     public void Pause() {
         Time.timeScale = 0f;          // Freeze time
         player.enabled = false;       // Disable player controls
@@ -262,14 +268,14 @@ public class player : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0)) {
             direction = Vector3.up * strength;  // Flap upward
         }
-        
+
         if (Input.touchCount > 0) {
             Touch touch = Input.GetTouch(0);
             if (touch.phase == TouchPhase.Began) {
                 direction = Vector3.up * strength;  // Flap on touch
             }
         }
-        
+
         // Apply gravity and move the player
         direction.y += gravity * Time.deltaTime;
         transform.position += direction * Time.deltaTime;
@@ -332,7 +338,7 @@ public class spawner : MonoBehaviour
 Check out our game in action:
 
 <S3VideoPlayer
-  src="https://ibs-data-storage.s3.amazonaws.com/p/b/blog/flappy-fusion-unity-game/flappy_bird.mp4"
+  src='https://ibs-data-storage.s3.amazonaws.com/p/b/blog/flappy-fusion-unity-game/flappy_bird.mp4'
   width={640}
   height={360}
   autoplay
@@ -340,7 +346,7 @@ Check out our game in action:
   mdx
 />
 
-*Demo video showing Flappy Fusion gameplay*
+_Demo video showing Flappy Fusion gameplay_
 
 ## Try It Yourself
 
