@@ -1,0 +1,664 @@
+---
+title: "Essential Coding Patterns for Technical Interviews"
+publishedAt: "2025-04-09"
+description: "A practical guide to the most common coding patterns asked in tech interviews, with real examples and implementations."
+englishOnly: "true"
+author: 'ibsanju'
+banner: "https://ibs-data-storage.s3.amazonaws.com/p/b/blog/essential-coding-patterns/25b9cf03-0cc3-47c1-b619-5cc5a80cd8be.png"
+tags: "algorithms,datastructures,interviews,javascript"
+slug: "essential-coding-patterns"
+---
+
+# Essential Coding Patterns for Technical Interviews
+
+Hey folks! After going through countless technical interviews (both as a candidate and an interviewer), I've noticed that certain algorithmic patterns come up again and again. Learning these patterns can dramatically improve your problem-solving skills and interview performance.
+
+Today, I'm sharing the most common patterns you should know before your next interview. For each pattern, I'll explain:
+- When and why you'd use it
+- How it works conceptually
+- A real LeetCode example with solution
+- Time and space complexity breakdown
+
+Let's dive in! 👨‍💻
+
+## 1. Heap for Top-K Elements
+
+**When to use it:**
+Need to repeatedly access the largest/smallest K elements from a dataset? Heaps are your friend! They're perfect when you need to maintain a "running best" collection of items.
+
+**Why it works:**
+A heap gives you O(log K) time for insertions and deletions while maintaining the highest/lowest priority elements at the top. This beats sorting the entire array every time - especially when dealing with streams of data.
+
+**Example: [LeetCode 215 – Kth Largest Element in an Array](https://leetcode.com/problems/kth-largest-element-in-an-array/)**
+
+Let's say we have an array `[3,2,1,5,6,4]` and we need to find the 2nd largest element (k=2).
+
+```javascript
+function findKthLargest(nums, k) {
+  // Using a min heap of size k
+  // We'll keep our k largest elements in the heap
+  const minHeap = new MinPriorityQueue();
+  
+  for (const num of nums) {
+    // Add the current number to our heap
+    minHeap.enqueue(num);
+    
+    // If heap size exceeds k, remove the smallest element
+    // This ensures we always have k largest elements
+    if (minHeap.size() > k) {
+      minHeap.dequeue();
+    }
+  }
+  
+  // The root of our min heap will be the kth largest element
+  return minHeap.front().element;
+}
+
+// Note: MinPriorityQueue is from the 'datastructures-js/priority-queue' package
+// For interviews, you can implement a simple heap or use language-specific libraries
+```
+
+**Complexity:**
+- Time: O(n log k) where n is the array length
+- Space: O(k) for storing the heap
+
+> **Note:** In JavaScript, the native heap implementation isn't available, so I'm using a priority queue. In interviews, you can mention this or implement a simple heap yourself depending on the requirements.
+
+## 2. HashMap / HashSet
+
+**When to use it:**
+HashMaps and HashSets are your go-to for problems that need quick lookups, frequency counting, or duplicate detection. They're essential for reducing time complexity from O(n²) to O(n).
+
+**Why it works:**
+With average O(1) lookup times, you can check if something exists, count occurrences, or store additional info about each element without repeated array scans.
+
+**Example: [LeetCode 1 – Two Sum](https://leetcode.com/problems/two-sum/)**
+
+We need to find two numbers in an array that add up to a target value.
+
+```javascript
+function twoSum(nums, target) {
+  // Store numbers we've seen and their indices
+  const seen = new Map();
+  
+  for (let i = 0; i < nums.length; i++) {
+    // Calculate what number we need to find
+    const complement = target - nums[i];
+    
+    // If we've seen this complement before, we found our pair!
+    if (seen.has(complement)) {
+      return [seen.get(complement), i];
+    }
+    
+    // Otherwise, store this number for future lookups
+    seen.set(nums[i], i);
+  }
+  
+  // No solution found
+  return [];
+}
+```
+
+**Complexity:**
+- Time: O(n) - we only need to go through the array once
+- Space: O(n) - in the worst case, we store almost all elements in our hash map
+
+I honestly use this pattern all the time, even outside of interviews. It's probably the most practical day-to-day pattern for simplifying algorithm logic.
+
+## 3. Sliding Window
+
+**When to use it:**
+The sliding window technique shines when you need to find or optimize over contiguous subarrays or substrings. It's especially powerful for problems involving:
+- Maximum/minimum subarrays of fixed size
+- Longest substring with certain properties
+- Finding substrings with constraints
+
+**Why it works:**
+Instead of recalculating from scratch, a sliding window maintains and updates a "window" of elements as it moves through the array, avoiding redundant work.
+
+**Example: [LeetCode 3 – Longest Substring Without Repeating Characters](https://leetcode.com/problems/longest-substring-without-repeating-characters/)**
+
+```javascript
+function lengthOfLongestSubstring(s) {
+  let maxLength = 0;
+  let windowStart = 0;
+  const charMap = new Map(); // Tracks character positions
+  
+  // Extend the window one character at a time
+  for (let windowEnd = 0; windowEnd < s.length; windowEnd++) {
+    const rightChar = s[windowEnd];
+    
+    // If we've seen this character before and it's inside our current window
+    if (charMap.has(rightChar) && charMap.get(rightChar) >= windowStart) {
+      // Move window start just past the previous occurrence
+      windowStart = charMap.get(rightChar) + 1;
+    }
+    
+    // Update character position
+    charMap.set(rightChar, windowEnd);
+    
+    // Update maximum length found so far
+    maxLength = Math.max(maxLength, windowEnd - windowStart + 1);
+  }
+  
+  return maxLength;
+}
+```
+
+**Complexity:**
+- Time: O(n) - we process each character exactly once
+- Space: O(min(m,n)) - where m is the size of the character set
+
+The sliding window pattern takes practice to master, but once you get comfortable with it, you'll spot its applications everywhere!
+
+## 4. Breadth-First Search (BFS)
+
+**When to use it:**
+BFS is ideal when you need to find the shortest path or distance in unweighted graphs, trees, or grids. It's also great for level-order traversals where you need to process nodes level by level.
+
+**Why it works:**
+By exploring nodes in layers (level by level), BFS guarantees you'll find the shortest path in terms of number of edges.
+
+**Example: [LeetCode 733 – Flood Fill](https://leetcode.com/problems/flood-fill/)**
+
+Imagine we have a grid representing an image, and we need to "flood fill" from a starting position (like the paint bucket tool).
+
+```javascript
+function floodFill(image, sr, sc, color) {
+  // If starting pixel already has the target color, no change needed
+  const startColor = image[sr][sc];
+  if (startColor === color) return image;
+  
+  const rows = image.length;
+  const cols = image[0].length;
+  
+  // Initialize queue with starting position
+  const queue = [[sr, sc]];
+  
+  // Possible directions: up, right, down, left
+  const directions = [[-1, 0], [0, 1], [1, 0], [0, -1]];
+  
+  // Process queue (BFS)
+  while (queue.length > 0) {
+    const [r, c] = queue.shift();
+    
+    // Fill current pixel
+    image[r][c] = color;
+    
+    // Check all 4 adjacent pixels
+    for (const [dr, dc] of directions) {
+      const newR = r + dr;
+      const newC = c + dc;
+      
+      // Ensure new position is valid and has the original color
+      if (
+        newR >= 0 && newR < rows &&
+        newC >= 0 && newC < cols &&
+        image[newR][newC] === startColor
+      ) {
+        queue.push([newR, newC]);
+      }
+    }
+  }
+  
+  return image;
+}
+```
+
+**Complexity:**
+- Time: O(n) - where n is the number of pixels in the image
+- Space: O(n) - in worst case, almost all pixels might be in the queue
+
+> **Note:** When implementing BFS, always use a queue (FIFO) data structure. This ensures we process nodes level by level, which is the key to finding shortest paths.
+
+## 5. Depth-First Search (DFS)
+
+**When to use it:**
+DFS excels at exploring full paths, finding connected components, or solving problems that involve backtracking. It's particularly useful for:
+- Detecting cycles
+- Topological sorting
+- Exploring all possible paths/combinations
+- Connected component analysis
+
+**Why it works:**
+By diving deep before backtracking, DFS efficiently explores branches of possibilities.
+
+**Example: [LeetCode 200 – Number of Islands](https://leetcode.com/problems/number-of-islands/)**
+
+We have a grid representing land ('1') and water ('0'), and need to count the number of islands.
+
+```javascript
+function numIslands(grid) {
+  if (!grid || grid.length === 0) return 0;
+  
+  const rows = grid.length;
+  const cols = grid[0].length;
+  let islandCount = 0;
+  
+  // Helper function for DFS
+  function dfs(r, c) {
+    // Check boundaries and if it's land
+    if (
+      r < 0 || r >= rows ||
+      c < 0 || c >= cols ||
+      grid[r][c] === '0'
+    ) {
+      return;
+    }
+    
+    // Mark as visited by changing to water
+    grid[r][c] = '0';
+    
+    // Explore in all 4 directions
+    dfs(r - 1, c); // Up
+    dfs(r + 1, c); // Down
+    dfs(r, c - 1); // Left
+    dfs(r, c + 1); // Right
+  }
+  
+  // Scan the grid
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (grid[r][c] === '1') {
+        islandCount++;
+        dfs(r, c); // Mark the entire island as visited
+      }
+    }
+  }
+  
+  return islandCount;
+}
+```
+
+**Complexity:**
+- Time: O(m×n) - we may need to visit all cells
+- Space: O(m×n) - in worst case for the recursion stack (a single snake-like island)
+
+> **Note:** DFS is often implemented recursively, which makes the code more readable, but be aware of potential stack overflow for very large inputs. In those cases, you can use an explicit stack data structure.
+
+## 6. Two Pointers
+
+**When to use it:**
+The two pointers technique is perfect when working with sorted arrays or when you need to find a pair of elements that satisfy certain conditions. It's also great for in-place operations.
+
+**Why it works:**
+By using two pointers that move strategically (often from opposite ends), you can solve many problems in a single pass with constant extra space.
+
+**Example: [LeetCode 167 – Two Sum II](https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/)**
+
+Given a sorted array, find two numbers that add up to a specific target.
+
+```javascript
+function twoSum(numbers, target) {
+  let left = 0;
+  let right = numbers.length - 1;
+  
+  while (left < right) {
+    const sum = numbers[left] + numbers[right];
+    
+    if (sum === target) {
+      // Found the pair! Return 1-indexed positions
+      return [left + 1, right + 1];
+    } else if (sum < target) {
+      // Sum too small, move left pointer to increase the sum
+      left++;
+    } else {
+      // Sum too large, move right pointer to decrease the sum
+      right--;
+    }
+  }
+  
+  // No solution found
+  return [-1, -1];
+}
+```
+
+**Complexity:**
+- Time: O(n) - we scan the array at most once
+- Space: O(1) - just two pointers regardless of input size
+
+The beauty of the two pointers approach is its simplicity and efficiency. I've used it countless times to optimize solutions from O(n²) to O(n).
+
+## 7. Binary Search
+
+**When to use it:**
+Binary search is your go-to whenever you're dealing with a sorted array or when the search space can be divided into halves based on some condition. It's also useful for optimization problems where you need to find a value that satisfies certain criteria.
+
+**Why it works:**
+By eliminating half of the remaining elements at each step, binary search achieves O(log n) time complexity - dramatically faster than linear search for large datasets.
+
+**Example: [LeetCode 704 – Binary Search](https://leetcode.com/problems/binary-search/)**
+
+```javascript
+function search(nums, target) {
+  let left = 0;
+  let right = nums.length - 1;
+  
+  while (left <= right) {
+    // Calculate middle index (avoiding integer overflow)
+    const mid = left + Math.floor((right - left) / 2);
+    
+    if (nums[mid] === target) {
+      return mid; // Found the target
+    } else if (nums[mid] < target) {
+      left = mid + 1; // Target is in the right half
+    } else {
+      right = mid - 1; // Target is in the left half
+    }
+  }
+  
+  return -1; // Target not found
+}
+```
+
+**Complexity:**
+- Time: O(log n) - we divide the search space in half each time
+- Space: O(1) - constant extra space
+
+> **Note:** Binary search is deceptively tricky to implement correctly. Pay careful attention to the exit condition (`left <= right`) and how you update the boundaries. The classic mistake is infinite loops from improper boundary updates.
+
+## 8. Backtracking
+
+**When to use it:**
+Backtracking is powerful for problems where you need to find all possible solutions or explore a space of possibilities with constraints. It's commonly used for:
+- Generating combinations/permutations
+- Solving puzzles (Sudoku, N-Queens)
+- Path finding with constraints
+
+**Why it works:**
+Backtracking explores all paths methodically and abandons paths that violate constraints, saving time by not pursuing dead ends.
+
+**Example: [LeetCode 46 – Permutations](https://leetcode.com/problems/permutations/)**
+
+Generate all possible permutations of a distinct integer array.
+
+```javascript
+function permute(nums) {
+  const result = [];
+  
+  // Helper function for backtracking
+  function backtrack(current, remaining) {
+    // If no numbers remaining, we have a complete permutation
+    if (remaining.length === 0) {
+      result.push([...current]);
+      return;
+    }
+    
+    // Try each remaining number as the next in sequence
+    for (let i = 0; i < remaining.length; i++) {
+      // Choose one number
+      current.push(remaining[i]);
+      
+      // Explore with this choice
+      const newRemaining = [...remaining.slice(0, i), ...remaining.slice(i + 1)];
+      backtrack(current, newRemaining);
+      
+      // Undo the choice (backtrack)
+      current.pop();
+    }
+  }
+  
+  backtrack([], nums);
+  return result;
+}
+```
+
+**Complexity:**
+- Time: O(n!) - we generate all permutations
+- Space: O(n) - for the recursion stack and to store current permutation
+
+Backtracking follows a "try, explore, and undo" pattern that's incredibly powerful for combinatorial problems. The key is defining clear constraints that let you abandon unpromising paths early.
+
+## 9. Stack
+
+**When to use it:**
+Stacks are perfect for problems involving:
+- Matching pairs (like brackets)
+- Tracking history or state that needs to be reversed
+- Parsing expressions
+- DFS implementations without recursion
+
+**Why it works:**
+The Last In, First Out (LIFO) nature of stacks makes them ideal for problems where the most recently seen item is the most important.
+
+**Example: [LeetCode 20 – Valid Parentheses](https://leetcode.com/problems/valid-parentheses/)**
+
+Check if a string of brackets is valid (every opening bracket has a matching closing bracket in the correct order).
+
+```javascript
+function isValid(s) {
+  const stack = [];
+  const pairs = {
+    ')': '(',
+    '}': '{',
+    ']': '['
+  };
+  
+  for (const char of s) {
+    if (char === '(' || char === '{' || char === '[') {
+      // Push opening brackets onto stack
+      stack.push(char);
+    } else {
+      // For closing brackets, check if it matches the most recent opening bracket
+      const lastBracket = stack.pop();
+      
+      // If stack is empty or brackets don't match
+      if (lastBracket !== pairs[char]) {
+        return false;
+      }
+    }
+  }
+  
+  // Valid only if all brackets were matched (stack is empty)
+  return stack.length === 0;
+}
+```
+
+**Complexity:**
+- Time: O(n) - we process each character once
+- Space: O(n) - in worst case, we push all opening brackets onto the stack
+
+Stacks are one of those data structures that seem simple but solve an incredible range of problems elegantly. They're especially useful when you need to "remember" things in reverse order.
+
+## 10. Fast & Slow Pointers
+
+**When to use it:**
+This pattern is brilliant for linked list problems, especially:
+- Detecting cycles
+- Finding the middle element
+- Finding list length
+- Determining if paths intersect
+
+**Why it works:**
+By having two pointers moving at different speeds, you can gain insights about the structure without using extra space.
+
+**Example: [LeetCode 141 – Linked List Cycle](https://leetcode.com/problems/linked-list-cycle/)**
+
+Determine if a linked list has a cycle.
+
+```javascript
+function hasCycle(head) {
+  // Edge cases
+  if (!head || !head.next) return false;
+  
+  // Initialize two pointers
+  let slow = head;
+  let fast = head;
+  
+  // Move slow by 1 step and fast by 2 steps
+  while (fast && fast.next) {
+    slow = slow.next;
+    fast = fast.next.next;
+    
+    // If they meet, there's a cycle
+    if (slow === fast) {
+      return true;
+    }
+  }
+  
+  // If fast pointer reaches the end, there's no cycle
+  return false;
+}
+```
+
+**Complexity:**
+- Time: O(n) - in worst case, we traverse the entire list
+- Space: O(1) - just two pointers regardless of list size
+
+This technique is also known as the "tortoise and hare" algorithm, famously used in Floyd's cycle-finding algorithm. It's amazingly simple yet powerful.
+
+## 11. Dynamic Programming (DP)
+
+**When to use it:**
+Dynamic programming is ideal when a problem has:
+- Overlapping subproblems (same calculations repeated)
+- Optimal substructure (optimal solution can be built from optimal solutions to subproblems)
+
+Common signs include questions about finding minimum/maximum values or counting possible ways to do something.
+
+**Why it works:**
+By storing results of subproblems, we avoid redundant calculations and build up to the final solution.
+
+**Example: [LeetCode 70 – Climbing Stairs](https://leetcode.com/problems/climbing-stairs/)**
+
+How many different ways can you climb n stairs if you can take 1 or 2 steps at a time?
+
+```javascript
+function climbStairs(n) {
+  // Edge cases
+  if (n <= 2) return n;
+  
+  // Initialize our dp array
+  const dp = new Array(n + 1);
+  dp[1] = 1; // One way to climb 1 stair
+  dp[2] = 2; // Two ways to climb 2 stairs (1+1 or 2)
+  
+  // Build up from smaller subproblems
+  for (let i = 3; i <= n; i++) {
+    // To reach stair i, we can either:
+    // 1. Take a single step from stair i-1
+    // 2. Take a double step from stair i-2
+    dp[i] = dp[i-1] + dp[i-2];
+  }
+  
+  return dp[n];
+}
+```
+
+**Complexity:**
+- Time: O(n) - we calculate each step once
+- Space: O(n) - for the dp array
+
+> **Note:** This problem actually follows the Fibonacci sequence pattern! We could optimize to O(1) space by just keeping track of the last two values instead of the entire array.
+
+Dynamic Programming can be challenging to grasp at first, but it follows a pattern:
+1. Define what state(s) you need to track
+2. Establish a recurrence relation (how values relate)
+3. Identify base cases
+4. Decide if you need tabulation (bottom-up) or memoization (top-down)
+
+## 12. Trie (Prefix Tree)
+
+**When to use it:**
+Tries are specialized for string-based problems, particularly:
+- Autocomplete/typeahead features
+- Spell checking
+- Prefix matching
+- Word dictionaries
+- IP routing tables
+
+**Why it works:**
+Tries store characters in nodes, with words sharing prefixes sharing the same initial nodes, making prefix operations very efficient.
+
+**Example: [LeetCode 208 – Implement Trie (Prefix Tree)](https://leetcode.com/problems/implement-trie-prefix-tree/)**
+
+```javascript
+class TrieNode {
+  constructor() {
+    this.children = {}; // Map characters to child nodes
+    this.isEndOfWord = false; // Flag to mark complete words
+  }
+}
+
+class Trie {
+  constructor() {
+    this.root = new TrieNode();
+  }
+  
+  // Insert a word into the trie
+  insert(word) {
+    let node = this.root;
+    
+    for (const char of word) {
+      // Create node if it doesn't exist
+      if (!node.children[char]) {
+        node.children[char] = new TrieNode();
+      }
+      
+      // Move to the child node
+      node = node.children[char];
+    }
+    
+    // Mark end of word
+    node.isEndOfWord = true;
+  }
+  
+  // Return if word exists in the trie
+  search(word) {
+    let node = this.root;
+    
+    for (const char of word) {
+      // If character doesn't exist, word not found
+      if (!node.children[char]) {
+        return false;
+      }
+      
+      // Move to next node
+      node = node.children[char];
+    }
+    
+    // Word exists only if we reached end of word marker
+    return node.isEndOfWord;
+  }
+  
+  // Check if any word with this prefix exists
+  startsWith(prefix) {
+    let node = this.root;
+    
+    for (const char of prefix) {
+      if (!node.children[char]) {
+        return false;
+      }
+      node = node.children[char];
+    }
+    
+    // If we reach here, prefix exists
+    return true;
+  }
+}
+```
+
+**Complexity:**
+- Time: O(m) for all operations, where m is the length of the key
+- Space: O(n*m) where n is number of keys and m is average key length
+
+Tries might seem complex initially, but they're incredibly efficient for string operations. They're widely used in real-world applications like autocomplete systems, spell checkers, and IP routers.
+
+## Final Thoughts
+
+Mastering these patterns will dramatically improve your problem-solving abilities in technical interviews. Remember, the key isn't just to memorize solutions, but to understand the underlying patterns so you can apply them to new problems.
+
+When tackling a new problem:
+1. Take a moment to recognize the pattern
+2. Think about why that pattern would work
+3. Apply the pattern with the specific details of the problem
+4. Always analyze the time and space complexity
+
+I've created a [GitHub repository](https://github.com/ibsanju/coding-patterns) with complete implementations of all these patterns applied to multiple problems. Feel free to check it out for more practice!
+<GithubCard repo='ibsanju/coding-patterns' />
+
+Happy coding, and good luck with your interviews! 👍
+
+---
+
+What pattern do you find most challenging? Let me know in the comments!
