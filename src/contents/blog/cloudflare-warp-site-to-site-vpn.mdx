@@ -1,0 +1,411 @@
+---
+title: 'Cloudflare WARP Site-to-Site VPN Guide'
+publishedAt: '2025-04-14'
+description: 'A comprehensive guide on setting up a secure site-to-site VPN connection using Cloudflare WARP without requiring static IPs or direct firewall access.'
+banner: 'https://ibs-data-storage.s3.amazonaws.com/p/b/blog/cloudflare-warp-site-to-site-vpn/cloudflare-warp-site-to-site-vpn-banner.png'
+tags: 'vpn,networking,security,linux'
+slug: 'cloudflare-warp-site-to-site-vpn'
+---
+
+# Cloudflare WARP Site-to-Site VPN Implementation Guide
+
+Hey folks! 👋 If you've ever needed to connect private networks without the hassle of static IPs and complex firewall rules, you're in the right place. Today, I'll walk you through setting up a site-to-site VPN using Cloudflare WARP - a solution I've implemented multiple times that's both robust and surprisingly easy to configure.
+
+The beauty of this setup is its incredible flexibility. Whether you need to connect two Linux servers in the same city, link computers across continents, or build an entire multi-site private network, Cloudflare WARP can handle it all. You can use the WARP client on individual devices to add them to your VPN network, access remote computers and ports just like they're on your local network, and manage everything through a single dashboard.
+
+## TL;DR: Cloudflare WARP Site-to-Site VPN in a Nutshell
+
+- **What we're building**: A secure connection between two private networks (192.168.10.0/24 and 192.168.12.0/24) using Cloudflare's global network as a central hub.
+- **Key components**: 
+  - Cloudflare Zero Trust account (free tier works)
+  - Two Linux servers acting as connector nodes (one in each network)
+  - WARP client software on the connector nodes
+  - Static routes on client machines
+- **No need for**: Static IPs, direct firewall access, or traditional VPN infrastructure
+- **Major benefits**: Easy setup, central management, strong security, works from anywhere in the world
+- **Time needed**: About 1 hour for complete setup
+
+![Cloudflare WARP Network Diagram](https://ibs-data-storage.s3.amazonaws.com/p/b/blog/cloudflare-warp-site-to-site-vpn/cloudflare-warp-site-to-site-vpn-network.png)
+
+*Diagram showing the site-to-site VPN topology with Cloudflare as the central hub*
+
+## Prerequisites
+
+Before we dive in, make sure you have:
+
+- Two Ubuntu Linux servers (one in each network)
+- Admin access to both servers
+- Basic understanding of networking concepts
+- A valid email address for Cloudflare registration
+
+Let's get started!
+
+## Part 1: Setting Up Your Cloudflare Zero Trust Account
+
+First, we need to register with Cloudflare's Zero Trust platform:
+
+1. Go to [cloudflare.com](https://cloudflare.com) and click "Sign Up"
+2. Select "Zero Trust" and "Secure Access Services Edge"
+3. Click "Get started with free plan"
+4. Enter your email address and password for the admin user
+5. Select your account (if you have other Cloudflare services, they'll be bound together)
+6. Provide a team name (this will form a domain where users can access secured applications)
+7. Select the free plan and proceed with payment information (required but won't be charged)
+8. Confirm your email address using the verification link
+
+ > **Note:** The free plan provides plenty of functionality for our site-to-site VPN needs, with limitations mainly on the number of users and data transfer. For more details on plan limitations, see [Cloudflare's pricing page](https://www.cloudflare.com/products/zero-trust/plans/)
+
+## Part 2: Installing WARP Client Software
+
+Now, let's install the WARP client on both of our connector nodes. Run these commands on both Node 1 and Node 2:
+
+```bash
+# Download the GPG key
+curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+
+# Add the Cloudflare repository
+echo "deb [arch=amd64 signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+
+# Update and install the WARP client
+sudo apt update
+sudo apt install cloudflare-warp
+```
+
+After installation, verify that the WARP service is running:
+
+```bash
+sudo systemctl status warp-svc
+```
+
+You should see an active (running) status. If not, start the service:
+
+```bash
+sudo systemctl start warp-svc
+sudo systemctl enable warp-svc  # Make it start automatically on boot
+```
+
+> **Note:** For installation on other platforms, refer to [Cloudflare's official WARP documentation](https://developers.cloudflare.com/warp-client/get-started/).
+
+## Part 3: Creating Tunnels to Connect to Cloudflare
+
+This is where the magic happens. We'll create tunnels that connect our nodes to Cloudflare's network.
+
+### For Node 1 (192.168.10.231):
+
+1. In the Cloudflare dashboard, navigate to "Networks" > "Tunnels"
+2. Click "Add Tunnel" and select "WARP Connector" as the tunnel type
+3. Name the tunnel "Net10" (representing the 192.168.10.0/24 network)
+4. Click "Create Tunnel"
+5. Copy the connection command displayed and run it on Node 1
+6. Click "Next" and return to the tunnels page
+
+The command will look something like this:
+
+```bash
+curl https://your-team-name.cloudflareaccess.com/warp/connector/abcd1234 | sudo bash
+```
+
+### For Node 2 (192.168.12.231):
+
+1. Repeat the process: create a new tunnel named "Net12"
+2. Copy the connection command and run it on Node 2
+3. Verify both tunnels show as "Healthy" in the Cloudflare dashboard
+
+If everything worked correctly, your tunnels page should show both connections as "Healthy" with green indicators.
+
+> **Note:** The connection tokens in these commands are single-use and tied to your specific account. Never share these tokens publicly!
+
+## Part 4: Understanding WARP Operation Modes
+
+Before we configure our site-to-site connection, let's understand the different operation modes available in WARP. This knowledge will help you customize the setup for your specific needs.
+
+### Proxy Mode
+
+This mode creates a SOCKS5 proxy server on your node:
+
+1. Go to "Settings" > "WARP Client" > "Device Settings" > "Default Profile"
+2. Scroll down to operation modes and select "Proxy Mode"
+3. Set port to 1080 TCP and save the profile
+
+Applications can then be configured to use this proxy to route traffic through Cloudflare.
+
+### Tunnel Only Mode
+
+This mode routes all traffic through Cloudflare:
+
+1. Edit the connection profile
+2. Select "Gateway without DNS Filtering" and save
+
+Your public IP will now show as a Cloudflare IP when you check it.
+
+### DNS Only Mode
+
+This mode only routes DNS traffic through Cloudflare:
+
+1. Edit the default profile
+2. Select "Gateway with DNS over HTTPS" and save
+
+This is useful for applying DNS-based policies without affecting other traffic.
+
+### Combined Mode (Gateway with WARP)
+
+This comprehensive mode provides both traffic routing and DNS filtering:
+
+1. Edit the default profile
+2. Select "Gateway with WARP" and save
+
+We'll use this mode for our site-to-site VPN setup.
+
+## Part 5: Setting Up the Site-to-Site Connection
+
+Now let's configure the actual site-to-site connectivity:
+
+### Step 1: Configure Essential WARP Settings
+
+1. Go to "Settings" > "WARP Client" > "Device Settings" > "Default Profile"
+2. Enable "Override local interface IP" (crucial for site-to-site connectivity)
+   - This ensures each WARP client gets a unique IP from the 100.64.0.0/10 range
+   - Node 1 will be assigned something like 100.x.x.3
+   - Node 2 will be assigned something like 100.x.x.4
+
+### Step 2: Configure Split Tunneling
+
+1. Edit the default profile
+2. Navigate to "Split Tunnel" > "Manage"
+3. Remove the 100.64.0.0/10 range from the exclusion list
+   - This ensures traffic to the 100.x.x.x network routes through Cloudflare
+4. Also remove the 192.168.0.0/16 network from the exclusion list
+   - This allows traffic to remote private networks to route through Cloudflare
+
+### Step 3: Enable Gateway Proxy and WARP-to-WARP Connections
+
+1. Go to "Settings" > "Network" > "Firewall"
+2. Enable proxy for TCP, UDP, and ICMP protocols
+3. Check "Allow WARP to WARP connection" to enable communication between WARP devices
+
+### Step 4: Enable IP Forwarding on Both Nodes
+
+For our connector nodes to properly route traffic, we need to enable IP forwarding:
+
+```bash
+# Edit the kernel configuration file
+sudo nano /etc/sysctl.conf
+
+# Uncomment this line:
+net.ipv4.ip_forward=1
+
+# Save and apply changes
+sudo sysctl -p
+```
+
+### Step 5: Set Up Routes in Cloudflare
+
+Now we tell Cloudflare how to route traffic between our networks:
+
+1. Go to "Networks" > "Routes" > "Add Route"
+2. For the first route:
+   - Prefix: 192.168.10.0/24
+   - Via: Select "Net10" tunnel (pointing to Node 1)
+3. Add another route:
+   - Prefix: 192.168.12.0/24
+   - Via: Select "Net12" tunnel (pointing to Node 2)
+
+### Step 6: Set Up Static Routes on Client Machines
+
+Finally, we need to tell our client machines how to reach the remote network:
+
+On Client 2 (192.168.12.232):
+```bash
+# Add a route to reach the 192.168.10.0/24 network via Node 2
+sudo ip route add 192.168.10.0/24 via 192.168.12.231
+```
+
+On Client 1 (192.168.10.232):
+```bash
+# Add a route to reach the 192.168.12.0/24 network via Node 1
+sudo ip route add 192.168.12.0/24 via 192.168.10.231
+```
+
+To make these routes persistent across reboots, we need to add them to the network configuration:
+
+```bash
+# For Ubuntu/Debian systems using netplan
+sudo nano /etc/netplan/01-netcfg.yaml
+```
+
+Add the routes to the configuration file:
+
+```yaml
+network:
+  version: 2
+  ethernets:
+    ens33:  # Your network interface name may differ
+      routes:
+      - to: 192.168.12.0/24
+        via: 192.168.10.231
+```
+
+Then apply with:
+
+```bash
+sudo netplan apply
+```
+
+## Part 6: Testing the Connection
+
+Time to verify that everything is working properly:
+
+1. From Client 1, try reaching Client 2:
+```bash
+ping 192.168.12.232
+traceroute 192.168.12.232
+```
+
+2. The expected path should be:
+   - Client 1 → Node 1 → Cloudflare Network → Node 2 → Client 2
+   - And the reverse for replies
+
+3. If there are issues, use traffic capture tools to diagnose:
+```bash
+sudo tcpdump -i any icmp
+```
+
+## Part 7: Troubleshooting
+
+If you encounter issues, here are some common troubleshooting steps:
+
+### Connection Issues
+
+Check the WARP service status on both nodes:
+
+```bash
+warp-cli status
+warp-cli account
+warp-cli settings
+```
+
+View logs for more detailed information:
+
+```bash
+sudo journalctl -u warp-svc
+# For real-time monitoring
+sudo journalctl -u warp-svc -f
+```
+
+### Traffic Not Routing
+
+Verify routes on both nodes and client machines:
+
+```bash
+ip route show
+```
+
+Check that IP forwarding is enabled:
+
+```bash
+cat /proc/sys/net/ipv4/ip_forward
+# Should return 1
+```
+
+### Firewall Issues
+
+Ensure your local firewall allows forwarded traffic:
+
+```bash
+# Allow forwarded traffic (for UFW on Ubuntu)
+sudo ufw allow from 192.168.10.0/24
+sudo ufw allow from 192.168.12.0/24
+sudo ufw allow from 100.64.0.0/10
+```
+
+## Part 8: Advanced Configuration (Optional)
+
+### Setting Up NAT for Internet Access
+
+If you want clients to access the internet through the WARP tunnel:
+
+```bash
+sudo iptables -t nat -A POSTROUTING -o warp0 -j MASQUERADE
+```
+
+Make this persistent:
+
+```bash
+sudo apt install iptables-persistent
+sudo netfilter-persistent save
+```
+
+### Adding DNS Resolution Between Networks
+
+For hostname resolution between networks, you can either:
+
+1. Set up DNS forwarding between the networks
+2. Configure a central DNS server accessible from both networks
+3. Update local hosts files on frequently accessed machines
+
+### Creating Cloudflare Gateway Policies
+
+Cloudflare Gateway allows you to create powerful filtering policies:
+
+1. Block specific protocols:
+   - Go to "Gateway" > "Network" > "Add Network Policy"
+   - Example: Block SSH by setting traffic type to "TCP" with destination port 22
+   - Set action to "Block"
+
+2. Create DNS filtering policies:
+   - Block specific domains or entire content categories
+   - Example: "Block Movies" to restrict access to entertainment sites
+
+## Beyond Site-to-Site: Individual Device Connectivity
+
+While we've focused on connecting entire networks through Linux servers, Cloudflare WARP offers even more flexibility. Here's how you can expand your setup:
+
+### Adding Individual Devices to Your VPN
+
+The WARP client can be installed on various platforms:
+- Windows, macOS, and Linux desktops
+- iOS and Android mobile devices
+- Servers running different operating systems
+
+To add a device:
+1. Download the appropriate WARP client from Cloudflare
+2. Install and run the client
+3. Configure it to use your Zero Trust organization
+4. The device now has secure access to your entire private network
+
+This means a team member can work from anywhere in the world and still access internal resources as if they were directly connected to the office network.
+
+### Remote Port Access
+
+With devices connected through WARP, you can access remote services and ports seamlessly:
+- Connect to a remote database server using its private IP
+- Access file shares without exposing them to the internet
+- Use remote desktop or SSH connections securely through the VPN
+- Run internal web applications without creating public endpoints
+
+## Conclusion and Key Takeaways
+
+Congratulations! You've successfully set up a site-to-site VPN using Cloudflare WARP. Let's recap what we've accomplished:
+
+1. Created a secure connection between two private networks without requiring static IPs
+2. Leveraged Cloudflare's global network for routing traffic
+3. Configured split tunneling to control which traffic goes through the VPN
+4. Set up persistent routes to ensure connectivity survives reboots
+5. Added optional security policies to control traffic
+
+The major advantages of this approach are:
+
+- No need for static IPs or direct firewall access
+- Traffic is secured through Cloudflare's global network
+- Additional security policies can be applied at the Cloudflare Gateway level
+- Easy to scale by adding more networks and individual devices to the same Cloudflare account
+- Connect from anywhere in the world and maintain access to all your resources
+- Access remote devices and ports as if they were on your local network
+
+This setup is ideal for connecting branch offices, home workers, cloud environments, or individual remote team members without complex traditional VPN configurations.
+
+For official documentation and updates, be sure to check out [Cloudflare's Zero Trust documentation](https://developers.cloudflare.com/cloudflare-one/).
+
+Have you implemented Cloudflare WARP in your environment? Let me know in the comments if you have any questions or insights to share!
+
+Happy networking! 🚀
