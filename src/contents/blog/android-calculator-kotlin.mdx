@@ -1,0 +1,386 @@
+---
+title: 'Building a Simple Calculator App in Android with Kotlin'
+publishedAt: '2025-04-16'
+lastUpdated: '2025-04-18'
+description: 'A step-by-step guide to creating a clean, functional calculator app using Kotlin, XML, and the mXparser library.'
+englishOnly: 'true'
+banner: 'https://ibs-data-storage.s3.amazonaws.com/p/b/blog/android-calculator-kotlin/calculator-blog.jpg'
+tags: 'android,kotlin,mobile-dev'
+slug: 'android-calculator-kotlin'
+---
+
+# Building a Simple Calculator App in Android with Kotlin
+
+Hey folks! 👋 Looking to build something practical while learning Android development? Let's create a calculator app using Kotlin that's both functional and good-looking. This tutorial is perfect for beginners who want to see how different Android components work together in a real project.
+
+## What We'll Build
+
+![Calculator App Demo](https://ibs-data-storage.s3.amazonaws.com/p/b/blog/android-calculator-kotlin/calculator-blog.jpg)
+
+By the end of this tutorial, you'll have a calculator that:
+
+- Performs basic arithmetic (addition, subtraction, multiplication, division)
+- Supports decimal numbers
+- Handles parentheses for complex expressions like (3×(4+2))÷2
+- Shows real-time results as you type
+- Has a clean, modern UI with properly styled buttons
+
+## Prerequisites
+
+Before we dive in, you'll need:
+
+- Android Studio installed on your computer
+- Basic understanding of Kotlin and XML layouts
+- Familiarity with Android project structure
+- A cup of coffee (optional, but recommended ☕)
+
+## Project Setup
+
+Let's start by creating a new Android project:
+
+1. Open Android Studio and click on "New Project"
+2. Select "Empty Activity" template
+3. Name your project "Calculator"
+4. Set the package name (I'm using "com.ibsanju.calculator")
+5. Select "Kotlin" as the language
+6. Set your minimum SDK (API 21 or higher is recommended)
+7. Click "Finish"
+
+## Setting Up Dependencies
+
+For our calculator to evaluate expressions, we'll use the mXparser library - it's a powerful math parser that can handle complex expressions with minimal code.
+
+Here's what you need to add to your module-level `build.gradle` file:
+
+```kotlin
+android {
+    // Enable view binding for easier view access
+    buildFeatures {
+        viewBinding = true
+    }
+}
+
+dependencies {
+    // Add mXparser library for expression evaluation
+    implementation("org.mariuszgromada.math:MathParser.org-mXparser:4.4.2")
+}
+```
+
+This setup gives us two key tools:
+
+1. View binding for type-safe UI interaction
+2. mXparser for calculating mathematical expressions
+
+## Designing the UI
+
+Let's create the calculator interface. We'll need a two-part layout:
+
+1. A display area showing both the input expression and calculated result
+2. A grid of calculator buttons arranged in rows
+
+Here's a simplified version of our layout structure:
+
+```xml
+<!-- Key parts of the layout XML -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/window_background">
+
+    <!-- Title section omitted for brevity -->
+
+    <!-- Display area with input and result -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="bottom"
+        android:padding="16dp"
+        android:background="@color/io_background"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:textSize="30sp"
+            android:maxLines="3" />
+
+        <TextView
+            android:id="@+id/output"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:textSize="50sp"
+            android:textColor="@color/green" />
+    </LinearLayout>
+
+    <!-- Calculator buttons use a TableLayout with rows of buttons -->
+    <!-- Full implementation available in the repository -->
+</LinearLayout>
+```
+
+### Adding Colors and Styles
+
+For visual appeal, we need to define colors and styles for our calculator:
+
+```xml
+<!-- colors.xml - key colors for our UI -->
+<resources>
+    <!-- Standard Android colors omitted -->
+    <color name="window_background">#FFFFFFFF</color>
+    <color name="io_background">#F9F9F9</color>
+    <color name="green">#4ea043</color>
+    <color name="red">#d14f4f</color>
+    <color name="text_main">#FF000000</color>
+</resources>
+```
+
+```xml
+<!-- styles.xml - consistent styling for all buttons -->
+<resources>
+    <style name="Button_Style" parent="Widget.AppCompat.Button.Borderless">
+        <item name="android:textSize">24sp</item>
+        <item name="android:textColor">@color/black</item>
+        <item name="android:gravity">center</item>
+        <item name="fontFamily">sans-serif-light</item>
+    </style>
+</resources>
+```
+
+This gives us a clean, modern look with clear visual hierarchy between different elements.
+
+## Adding the Logic: Kotlin Implementation
+
+Now comes the fun part - making our calculator actually work! I'll focus on explaining the most interesting parts of the code rather than showing every line. You can find the complete implementation in my GitHub repository.
+
+Here are the key components of our implementation:
+
+```kotlin
+// Key parts of MainActivity.kt
+class MainActivity : AppCompatActivity() {
+    private lateinit var binding: ActivityMainBinding
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        // Set up all calculator buttons
+        setupCalculatorButtons()
+    }
+
+    // This function sets up click listeners for all calculator buttons
+    private fun setupCalculatorButtons() {
+        // Setup for number buttons 0-9 (abbreviated)
+        listOf(
+            binding.button0, binding.button1, /* ... and so on */
+        ).forEachIndexed { index, button ->
+            button.setOnClickListener {
+                binding.input.text = addToInputText(index.toString())
+                showResult() // Calculate and show result immediately
+            }
+        }
+
+        // Setup for operators and other buttons (abbreviated)
+        // See full implementation in repository
+    }
+
+    /**
+     * One of the interesting parts: handling implicit multiplication
+     */
+    private fun addToInputText(buttonValue: String): String {
+        val currentText = binding.input.text.toString()
+
+        // Handle special case: number followed by opening parenthesis
+        if (buttonValue == "(" && currentText.isNotEmpty() && currentText.last().isDigit()) {
+            // Insert multiplication sign: "5(" becomes "5×("
+            return "$currentText×("
+        }
+        // Handle special case: closing parenthesis followed by number
+        else if (buttonValue.first().isDigit() && currentText.isNotEmpty() && currentText.last() == ')') {
+            // Insert multiplication sign: ")5" becomes ")×5"
+            return "$currentText×$buttonValue"
+        }
+
+        // Default case: simply append the button value
+        return currentText + buttonValue
+    }
+
+    /**
+     * Main calculation function that uses mXparser library
+     */
+    private fun showResult() {
+        try {
+            val expression = getInputExpression()
+            if (expression.isEmpty()) {
+                binding.output.text = ""
+                return
+            }
+
+            // Core calculation using mXparser
+            val result = Expression(expression).calculate()
+
+            // Formatting and error handling logic follows...
+        } catch (e: Exception) {
+            // Error handling
+        }
+    }
+}
+```
+
+## Smart Features Worth Highlighting
+
+Our calculator isn't just a basic implementation - it includes several smart features that make it more user-friendly:
+
+### Real-time Calculation
+
+One of my favorite features is how the calculator updates results in real-time as you type. This happens because we call `showResult()` after each button press, giving users immediate feedback.
+
+### Implicit Multiplication
+
+This is where our calculator gets really smart - it automatically inserts multiplication signs where they're implied:
+
+```kotlin
+// Examples of implicit multiplication handling:
+// "5(" becomes "5×("
+// ")5" becomes ")×5"
+```
+
+Most calculators require you to explicitly press the multiply button, but ours understands mathematical notation the way humans naturally write it.
+
+### Graceful Error Handling
+
+Instead of crashing when users enter invalid expressions, our calculator shows helpful error messages:
+
+```kotlin
+try {
+    // Calculation code
+} catch (e: Exception) {
+    // Show friendly error message
+}
+```
+
+### Clean Number Formatting
+
+We format our results to look clean and professional:
+
+- Maximum of 6 decimal places
+- No trailing zeros
+- Appropriate error coloring
+
+## Running the App
+
+Once you've implemented all the components, it's time to build and run your calculator! Here's what the flow should look like:
+
+1. Launch the app to see a clean calculator interface
+2. Try typing a simple expression like `5+3`
+3. Notice how the result (`8`) appears automatically below
+4. Test more complex expressions with parentheses like `(4+2)×3`
+
+If everything is working correctly, your calculator should handle the expressions correctly and show results in real-time as you type.
+
+## The Magic: How Expression Evaluation Works
+
+The core of our calculator is the expression evaluation logic. Instead of writing a complex parser ourselves, we leverage the mXparser library:
+
+```kotlin
+// The magic happens in just a few lines:
+val expression = input.replace("÷", "/").replace("×", "*")
+val result = Expression(expression).calculate()
+```
+
+This simple approach lets us focus on creating a great user experience rather than wrestling with expression parsing algorithms. The mXparser library handles everything from operator precedence to parentheses nesting for us.
+
+## Demo
+
+Want to see it in action before building it yourself? Check out this short demo:
+
+<S3VideoPlayer
+  src='https://ibs-data-storage.s3.amazonaws.com/p/b/blog/android-calculator-kotlin/android-calculator-demo.mp4'
+  width={640}
+  height={360}
+  autoplay
+  loop
+  mdx
+/>
+
+## Try It Out
+
+If you'd like to try the finished app without building it, you can download the APK directly:
+
+[Download Calculator App APK](https://ibs-data-storage.s3.amazonaws.com/p/b/blog/android-calculator-kotlin/ibsanjuCalculator.apk)
+
+## Common Challenges & Solutions
+
+When building the calculator, you might encounter a few challenges. Here are some tips from my experience:
+
+### Challenge: Handling Operator Precedence
+
+**Solution:** Let mXparser handle it! The Expression class properly respects mathematical order of operations (PEMDAS/BODMAS).
+
+### Challenge: UI Layout for Different Screen Sizes
+
+**Solution:** Using weights in LinearLayout and TableLayout with `stretchColumns="*"` ensures the calculator looks good on various device sizes.
+
+### Challenge: Proper Number Formatting
+
+**Solution:** Use DecimalFormat with a pattern like `"0.######"` to limit decimal places and clean up the display.
+
+```kotlin
+// Clean display of numbers with proper formatting
+binding.output.text = DecimalFormat("0.######").format(result).toString()
+```
+
+### Challenge: Handling Edge Cases
+
+**Solution:** Test expressions like:
+
+- Division by zero
+- Empty parentheses
+- Multiple decimal points
+- Starting with operators
+
+Add specific error checking for these cases in your code.
+
+## Lessons I've Learned
+
+Building this calculator taught me several valuable lessons I'd like to share:
+
+1. **Let libraries do the heavy lifting** - Using mXparser saved me from reinventing the wheel with complex parsing logic
+
+2. **Focus on user experience** - Features like real-time calculation and implicit multiplication make the app feel professional
+
+3. **Handle edge cases proactively** - Accounting for division by zero, invalid inputs, and other edge cases makes your app robust
+
+4. **Use view binding instead of findViewById()** - This eliminates runtime errors from invalid IDs and makes your code cleaner
+
+5. **Keep UI and logic separated** - This makes the code easier to maintain and expand with new features
+
+## What's Next?
+
+The calculator we've built is a great foundation, but there's always room for improvement. If you enjoyed this project, consider these potential enhancements:
+
+1. **Scientific Calculator Mode** - Add trigonometric functions, logarithms, and exponents
+
+2. **History Feature** - Store recent calculations with the ability to reuse them
+
+3. **Themes & Customization** - Allow users to personalize their calculator with different color schemes
+
+4. **Landscape Mode** - Add a specialized layout for landscape orientation with additional functions
+
+5. **Unit Converter** - Expand functionality to include common unit conversions
+
+The beauty of Android development is that you can start with something simple and incrementally add features as you learn more. This calculator project provides an excellent foundation to build upon.
+
+Happy coding! 👨‍💻
+
+---
+
+**Source Code:** Check out the [complete project on GitHub](https://github.com/ibsanju/ibs-calculator-kotlin) for reference.
+
+<GithubCard repo='ibsanju/ibs-calculator-kotlin' />
+
+**Have questions?** Drop them in the comments below, and I'll help you troubleshoot!
