@@ -1,0 +1,2545 @@
+---
+title: 'Essential SQL Commands for Developer Interviews'
+publishedAt: '2025-05-02'
+description: 'A practical guide to the most important SQL commands and concepts you need to know for technical interviews.'
+englishOnly: 'true'
+banner: 'https://ibs-data-storage.s3.amazonaws.com/p/b/blog/essential-sql-commands/essential-sql-commands-banner.jpg'
+tags: 'sql,interviews,database'
+slug: 'essential-sql-commands'
+---
+
+# Essential SQL Commands for Developer Interviews
+
+I've noticed that SQL questions come up regularly—regardless of whether you're applying for a backend, full-stack, or even some frontend roles. Having a solid grasp of SQL fundamentals can really set you apart.
+
+In this post, I'll cover the most important SQL commands and concepts that frequently appear in technical interviews, complete with examples and explanations that helped me nail these questions. For each concept, I'll also share where it's commonly used in real-world development scenarios. Let's dive in! 👨‍💻
+
+## Basic SELECT Queries (The Foundation)
+
+Almost every SQL interview starts with basic SELECT queries—they're the building blocks for everything else.
+
+### Simple SELECT
+
+```sql
+-- Get all columns from a table
+SELECT * FROM employees;
+
+-- Get specific columns
+SELECT first_name, last_name, salary FROM employees;
+
+-- Using aliases for better readability
+SELECT
+    first_name AS FirstName,
+    last_name AS LastName
+FROM employees;
+```
+
+**Note:** While `SELECT *` is convenient for exploration, it's considered a bad practice in production code. Always specify only the columns you need.
+
+#### Where This Is Used
+
+These basic queries form the foundation of almost every data interaction in applications:
+
+- **API Endpoints**: Backend services that retrieve user profiles or product details
+- **Dashboards**: Admin panels showing customers, orders, or inventory
+- **Reports**: Monthly sales summaries or user activity logs
+
+#### Real-World Example
+
+Let's say you're building a product catalog for an e-commerce site:
+
+```sql
+-- Query used for product listing page
+SELECT
+    product_id,
+    product_name,
+    price,
+    stock_quantity,
+    CASE WHEN stock_quantity > 0 THEN 'In Stock' ELSE 'Out of Stock' END AS availability
+FROM products
+WHERE category_id = 12 -- Electronics category
+AND is_active = TRUE;
+```
+
+This query would power the product listings in the electronics section, showing only active products with their current availability status calculated on-the-fly.
+
+### Filtering with WHERE
+
+```sql
+-- Basic filtering
+SELECT * FROM employees WHERE department_id = 10;
+
+-- Multiple conditions
+SELECT * FROM employees
+WHERE salary > 50000 AND department_id = 20;
+
+-- Range queries
+SELECT * FROM employees
+WHERE hire_date BETWEEN '2020-01-01' AND '2022-12-31';
+
+-- Pattern matching with LIKE
+SELECT * FROM employees
+WHERE last_name LIKE 'S%';  -- Names starting with S
+```
+
+#### Where This Is Used
+
+WHERE clauses are essential for:
+
+- **Search functionality**: Filtering products by price range or category
+- **User permissions**: Showing only data the current user has access to
+- **Data analysis**: Narrowing results to specific time periods or conditions
+- **Content filtering**: Finding blog posts with specific tags or published dates
+
+#### Real-World Example
+
+In a project management application that needs to highlight tasks approaching deadlines:
+
+```sql
+-- Query for notification system - tasks due in next 48 hours
+SELECT
+    t.task_id,
+    t.task_name,
+    p.project_name,
+    t.due_date,
+    u.email
+FROM tasks t
+JOIN projects p ON t.project_id = p.project_id
+JOIN users u ON t.assigned_to = u.user_id
+WHERE t.completed = FALSE
+AND t.due_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '2 days')
+ORDER BY t.due_date ASC;
+```
+
+This query would feed an automated notification system that alerts users about upcoming deadlines.
+
+### Sorting with ORDER BY
+
+```sql
+-- Sort by a single column ascending (default)
+SELECT * FROM employees ORDER BY salary;
+
+-- Sort by multiple columns, different directions
+SELECT * FROM employees
+ORDER BY department_id ASC, salary DESC;
+```
+
+#### Where This Is Used
+
+ORDER BY is crucial for:
+
+- **Pagination**: Sorting results before applying LIMIT and OFFSET
+- **Leaderboards**: Displaying top performers or high scores
+- **Time-based feeds**: Showing newest content first
+- **Alphabetical listings**: Organizing directories or contact lists
+
+#### Real-World Example
+
+For a customer management dashboard showing high-value customers first:
+
+```sql
+-- Query for customer management interface
+SELECT
+    customer_id,
+    company_name,
+    contact_name,
+    SUM(order_total) AS total_spent,
+    COUNT(order_id) AS order_count,
+    MAX(order_date) AS last_order_date
+FROM customers c
+LEFT JOIN orders o ON c.customer_id = o.customer_id
+GROUP BY customer_id, company_name, contact_name
+ORDER BY total_spent DESC, last_order_date DESC
+LIMIT 50;
+```
+
+This would help account managers focus on their most valuable and recently active clients first.
+
+## Aggregation Functions
+
+Aggregation functions are extremely common in interviews as they test your ability to analyze data.
+
+### Basic Aggregations
+
+```sql
+-- Count total records
+SELECT COUNT(*) FROM employees;
+
+-- Count non-null values in a column
+SELECT COUNT(manager_id) FROM employees;
+
+-- Calculate average, sum, min, max
+SELECT
+    AVG(salary) AS average_salary,
+    SUM(salary) AS total_salary_expense,
+    MIN(salary) AS lowest_salary,
+    MAX(salary) AS highest_salary
+FROM employees;
+```
+
+#### Where This Is Used
+
+Aggregation functions appear in:
+
+- **Analytics dashboards**: Calculating key performance indicators
+- **Financial reports**: Summing transactions and expenses
+- **User insights**: Finding average session duration or engagement metrics
+- **Inventory management**: Tracking stock levels and valuation
+
+#### Real-World Example
+
+For an e-commerce analytics dashboard:
+
+```sql
+-- Daily sales summary for executive dashboard
+SELECT
+    DATE_TRUNC('day', order_date) AS order_day,
+    COUNT(DISTINCT customer_id) AS unique_customers,
+    COUNT(order_id) AS total_orders,
+    SUM(order_total) AS daily_revenue,
+    AVG(order_total) AS average_order_value,
+    SUM(order_total) / COUNT(DISTINCT customer_id) AS revenue_per_customer
+FROM orders
+WHERE order_date >= CURRENT_DATE - INTERVAL '30 days'
+GROUP BY DATE_TRUNC('day', order_date)
+ORDER BY order_day DESC;
+```
+
+This single query provides six key metrics that would power an executive dashboard showing business performance over the past month.
+
+### GROUP BY
+
+```sql
+-- Count employees per department
+SELECT
+    department_id,
+    COUNT(*) AS employee_count
+FROM employees
+GROUP BY department_id;
+
+-- Find average salary per department
+SELECT
+    department_id,
+    AVG(salary) AS avg_salary
+FROM employees
+GROUP BY department_id
+ORDER BY avg_salary DESC;
+```
+
+#### Where This Is Used
+
+GROUP BY powers:
+
+- **Comparison reports**: Sales by region or department
+- **Time-series analysis**: Metrics grouped by day/week/month
+- **Categorization**: Content grouped by topic or tag
+- **Resource planning**: Workload distribution across teams
+
+#### Real-World Example
+
+For a content platform tracking engagement metrics:
+
+```sql
+-- Content performance analysis by category
+SELECT
+    c.category_name,
+    COUNT(a.article_id) AS article_count,
+    SUM(a.view_count) AS total_views,
+    AVG(a.view_count) AS avg_views_per_article,
+    SUM(a.share_count) AS total_shares,
+    SUM(a.comment_count) AS total_comments,
+    SUM(a.view_count) / SUM(a.share_count) AS views_per_share_ratio
+FROM articles a
+JOIN categories c ON a.category_id = c.category_id
+WHERE a.publish_date >= CURRENT_DATE - INTERVAL '90 days'
+GROUP BY c.category_name
+ORDER BY total_views DESC;
+```
+
+This would help content strategists understand which categories drive the most engagement and should receive more resources.
+
+### HAVING
+
+`HAVING` is used to filter grouped data—think of it as WHERE but for groups.
+
+```sql
+-- Find departments with more than 10 employees
+SELECT
+    department_id,
+    COUNT(*) AS employee_count
+FROM employees
+GROUP BY department_id
+HAVING COUNT(*) > 10;
+
+-- Find departments where average salary is over 60000
+SELECT
+    department_id,
+    AVG(salary) AS avg_salary
+FROM employees
+GROUP BY department_id
+HAVING AVG(salary) > 60000;
+```
+
+#### Where This Is Used
+
+HAVING clauses help with:
+
+- **Threshold filtering**: Finding groups that meet certain criteria
+- **Anomaly detection**: Identifying unusual patterns in grouped data
+- **Focus areas**: Narrowing analysis to significant segments
+- **Resource optimization**: Identifying groups with high costs or usage
+
+#### Real-World Example
+
+For identifying potentially fraudulent transaction patterns:
+
+```sql
+-- Fraud detection report - customers with unusual transaction patterns
+SELECT
+    customer_id,
+    COUNT(transaction_id) AS transaction_count,
+    SUM(amount) AS total_amount,
+    COUNT(DISTINCT merchant_category_code) AS unique_categories,
+    MAX(amount) AS largest_transaction,
+    STDDEV(amount) AS amount_deviation
+FROM transactions
+WHERE transaction_date >= CURRENT_DATE - INTERVAL '7 days'
+GROUP BY customer_id
+HAVING COUNT(transaction_id) > 20 -- High frequency
+   OR MAX(amount) > 3 * AVG(amount) -- Unusually large transactions
+   OR COUNT(DISTINCT merchant_category_code) > 10 -- Unusual variety
+ORDER BY transaction_count DESC;
+```
+
+This query would help a fraud analysis team quickly identify customer accounts showing patterns that might indicate compromised cards.
+
+## Joins (The Interview Favorite)
+
+Joins are absolutely crucial for interview success. Many complex problems require combining data from multiple tables.
+
+### Inner Join
+
+```sql
+-- Get employee names with their department names
+SELECT
+    e.employee_id,
+    e.first_name,
+    e.last_name,
+    d.department_name
+FROM employees e
+INNER JOIN departments d ON e.department_id = d.department_id;
+```
+
+#### Where This Is Used
+
+Inner joins are the workhorses of relational databases, used for:
+
+- **Data enrichment**: Adding product categories to order items
+- **Normalized data access**: Reading related data across multiple tables
+- **Entity relationships**: Connecting users to their roles or permissions
+- **Feature enrichment**: Adding user details to activity logs
+
+#### Real-World Example
+
+In a project management app showing task details with assignee information:
+
+```sql
+-- Query powering task detail view
+SELECT
+    t.task_id,
+    t.title,
+    t.description,
+    t.status,
+    t.due_date,
+    p.project_name,
+    p.client_id,
+    u.full_name AS assigned_to,
+    u.email,
+    u.profile_image_url,
+    COUNT(c.comment_id) AS comment_count
+FROM tasks t
+INNER JOIN projects p ON t.project_id = p.project_id
+INNER JOIN users u ON t.assigned_to = u.user_id
+LEFT JOIN task_comments c ON t.task_id = c.task_id
+WHERE t.task_id = 12345
+GROUP BY t.task_id, t.title, t.description, t.status, t.due_date,
+         p.project_name, p.client_id, u.full_name, u.email, u.profile_image_url;
+```
+
+This query would populate a task detail page with all necessary information from multiple tables.
+
+### Left Join
+
+```sql
+-- Get all employees and their department (if they have one)
+SELECT
+    e.employee_id,
+    e.first_name,
+    e.last_name,
+    d.department_name
+FROM employees e
+LEFT JOIN departments d ON e.department_id = d.department_id;
+```
+
+#### Where This Is Used
+
+Left joins are perfect for:
+
+- **Optional relationships**: Getting user data even if they haven't set preferences
+- **Existence checks**: Finding items without related records (e.g., products without orders)
+- **Reporting with gaps**: Ensuring all primary records appear even without matching data
+- **Activity monitoring**: Showing all users with their latest login (if any)
+
+#### Real-World Example
+
+For a customer report showing recent activity (or lack thereof):
+
+```sql
+-- Customer engagement report
+SELECT
+    c.customer_id,
+    c.company_name,
+    c.contact_name,
+    c.signup_date,
+    COALESCE(MAX(o.order_date), 'No orders') AS last_order_date,
+    COALESCE(COUNT(o.order_id), 0) AS total_orders,
+    CASE
+        WHEN MAX(o.order_date) IS NULL THEN 'Never ordered'
+        WHEN MAX(o.order_date) < CURRENT_DATE - INTERVAL '90 days' THEN 'Inactive'
+        WHEN MAX(o.order_date) < CURRENT_DATE - INTERVAL '30 days' THEN 'At risk'
+        ELSE 'Active'
+    END AS customer_status
+FROM customers c
+LEFT JOIN orders o ON c.customer_id = o.customer_id
+GROUP BY c.customer_id, c.company_name, c.contact_name, c.signup_date
+ORDER BY customer_status, last_order_date;
+```
+
+This report would help a sales team identify at-risk or inactive customers, including those who signed up but never placed an order.
+
+### Right Join
+
+```sql
+-- Get all departments and their employees (if they have any)
+SELECT
+    e.employee_id,
+    e.first_name,
+    e.last_name,
+    d.department_name
+FROM employees e
+RIGHT JOIN departments d ON e.department_id = d.department_id;
+```
+
+#### Where This Is Used
+
+Right joins (less common but important to understand) are useful for:
+
+- **Inventory analysis**: Finding products that have no sales
+- **Coverage reports**: Ensuring all categories have associated content
+- **Requirement fulfillment**: Checking if all required fields have values
+- **Resource utilization**: Identifying underutilized resources
+
+#### Real-World Example
+
+For an editorial calendar checking content coverage across topics:
+
+```sql
+-- Content gap analysis for editorial planning
+SELECT
+    t.topic_name,
+    t.importance_score,
+    COUNT(a.article_id) AS article_count,
+    MAX(a.publish_date) AS last_published_date,
+    CASE
+        WHEN COUNT(a.article_id) = 0 THEN 'No content'
+        WHEN MAX(a.publish_date) < CURRENT_DATE - INTERVAL '180 days' THEN 'Outdated content'
+        ELSE 'Recent content'
+    END AS content_status
+FROM topics t
+RIGHT JOIN articles a ON t.topic_id = a.topic_id
+GROUP BY t.topic_id, t.topic_name, t.importance_score
+ORDER BY article_count, t.importance_score DESC;
+```
+
+This would help content strategists identify important topics with no content or outdated articles.
+
+### Full Outer Join
+
+```sql
+-- Get all employees and all departments, matching where possible
+SELECT
+    e.employee_id,
+    e.first_name,
+    d.department_name
+FROM employees e
+FULL OUTER JOIN departments d ON e.department_id = d.department_id;
+```
+
+#### Where This Is Used
+
+Full outer joins are specialized but powerful for:
+
+- **Data reconciliation**: Comparing two datasets to find mismatches
+- **System synchronization**: Identifying records in one system but not another
+- **Migration verification**: Ensuring all data transferred correctly
+- **Complete relationship mapping**: Showing all possible combinations
+
+#### Real-World Example
+
+For reconciling inventory between two systems:
+
+```sql
+-- Inventory reconciliation between warehouse and e-commerce systems
+SELECT
+    COALESCE(w.product_sku, e.product_sku) AS product_sku,
+    w.product_name AS warehouse_product_name,
+    e.product_name AS ecommerce_product_name,
+    w.quantity AS warehouse_quantity,
+    e.quantity AS ecommerce_quantity,
+    w.last_updated AS warehouse_last_updated,
+    e.last_updated AS ecommerce_last_updated,
+    CASE
+        WHEN w.product_sku IS NULL THEN 'Missing in warehouse'
+        WHEN e.product_sku IS NULL THEN 'Missing in e-commerce'
+        WHEN w.quantity <> e.quantity THEN 'Quantity mismatch'
+        ELSE 'Matched'
+    END AS status
+FROM warehouse_inventory w
+FULL OUTER JOIN ecommerce_inventory e ON w.product_sku = e.product_sku
+WHERE w.product_sku IS NULL OR e.product_sku IS NULL OR w.quantity <> e.quantity
+ORDER BY status, product_sku;
+```
+
+This query would identify discrepancies between two inventory systems that need to be resolved.
+
+### Self Join
+
+Self joins are particularly tricky and show up in manager-employee relationship questions.
+
+```sql
+-- Find employees and their managers' names
+SELECT
+    e.employee_id,
+    e.first_name AS employee_name,
+    m.first_name AS manager_name
+FROM employees e
+LEFT JOIN employees m ON e.manager_id = m.employee_id;
+```
+
+#### Where This Is Used
+
+Self joins are essential for:
+
+- **Hierarchical data**: Organizational charts and reporting structures
+- **Relationships**: Friend connections in social networks
+- **Recursive references**: Category parent-child relationships
+- **Sequential analysis**: Comparing consecutive events or records
+
+#### Real-World Example
+
+For a company directory with organizational hierarchy:
+
+```sql
+-- Organizational chart with multiple levels
+WITH RECURSIVE org_chart AS (
+    -- Base case: executives with no manager
+    SELECT
+        e.employee_id,
+        e.first_name,
+        e.last_name,
+        e.title,
+        e.manager_id,
+        0 AS level,
+        e.first_name || ' ' || e.last_name AS path
+    FROM employees e
+    WHERE e.manager_id IS NULL
+
+    UNION ALL
+
+    -- Recursive case: employees with managers in our result set
+    SELECT
+        e.employee_id,
+        e.first_name,
+        e.last_name,
+        e.title,
+        e.manager_id,
+        oc.level + 1,
+        oc.path || ' > ' || e.first_name || ' ' || e.last_name
+    FROM employees e
+    JOIN org_chart oc ON e.manager_id = oc.employee_id
+)
+SELECT
+    employee_id,
+    first_name,
+    last_name,
+    title,
+    level,
+    path
+FROM org_chart
+ORDER BY path;
+```
+
+This would generate a complete organizational hierarchy showing reporting chains throughout the company.
+
+## Subqueries
+
+Subqueries are queries nested within another query. They're a favorite interview topic because they test your ability to break down complex problems.
+
+### Subquery in WHERE Clause
+
+```sql
+-- Find employees who earn more than the average salary
+SELECT employee_id, first_name, last_name, salary
+FROM employees
+WHERE salary > (SELECT AVG(salary) FROM employees);
+
+-- Find employees in the department with the highest average salary
+SELECT employee_id, first_name, last_name, department_id
+FROM employees
+WHERE department_id = (
+    SELECT department_id
+    FROM employees
+    GROUP BY department_id
+    ORDER BY AVG(salary) DESC
+    LIMIT 1
+);
+```
+
+#### Where This Is Used
+
+Subqueries in WHERE clauses are perfect for:
+
+- **Filtering with aggregates**: Finding records above/below average values
+- **Dynamic filtering**: Criteria based on related data
+- **Multi-step filtering**: Narrowing results based on derived values
+- **Existence checks**: Finding records with or without related data
+
+#### Real-World Example
+
+For an e-commerce admin panel identifying products that outperform category averages:
+
+```sql
+-- Exceptional product performance report
+SELECT
+    p.product_id,
+    p.product_name,
+    p.category_id,
+    c.category_name,
+    p.price,
+    p.stock_quantity,
+    SUM(oi.quantity) AS units_sold,
+    SUM(oi.quantity * oi.unit_price) AS revenue
+FROM products p
+JOIN categories c ON p.category_id = c.category_id
+JOIN order_items oi ON p.product_id = oi.product_id
+JOIN orders o ON oi.order_id = o.order_id
+WHERE
+    o.order_date >= CURRENT_DATE - INTERVAL '30 days'
+    AND p.product_id IN (
+        -- Subquery finding products with above-average sales in their category
+        SELECT p_inner.product_id
+        FROM products p_inner
+        JOIN order_items oi_inner ON p_inner.product_id = oi_inner.product_id
+        JOIN orders o_inner ON oi_inner.order_id = o_inner.order_id
+        WHERE o_inner.order_date >= CURRENT_DATE - INTERVAL '30 days'
+        GROUP BY p_inner.product_id, p_inner.category_id
+        HAVING SUM(oi_inner.quantity) > (
+            -- Nested subquery for category average
+            SELECT AVG(product_sales.total_quantity)
+            FROM (
+                SELECT
+                    p_avg.product_id,
+                    SUM(oi_avg.quantity) AS total_quantity
+                FROM products p_avg
+                JOIN order_items oi_avg ON p_avg.product_id = oi_avg.product_id
+                JOIN orders o_avg ON oi_avg.order_id = o_avg.order_id
+                WHERE
+                    o_avg.order_date >= CURRENT_DATE - INTERVAL '30 days'
+                    AND p_avg.category_id = p_inner.category_id
+                GROUP BY p_avg.product_id
+            ) product_sales
+        )
+    )
+GROUP BY p.product_id, p.product_name, p.category_id, c.category_name, p.price, p.stock_quantity
+ORDER BY revenue DESC;
+```
+
+This complex query identifies products that are selling better than the average for their category, which could indicate trending items that deserve promotional focus.
+
+### Subquery in FROM Clause
+
+```sql
+-- Get department stats and the company-wide average for comparison
+SELECT
+    d.department_name,
+    dept_stats.avg_salary,
+    company_avg.avg_salary AS company_avg_salary
+FROM (
+    SELECT
+        department_id,
+        AVG(salary) AS avg_salary
+    FROM employees
+    GROUP BY department_id
+) dept_stats
+JOIN departments d ON dept_stats.department_id = d.department_id
+CROSS JOIN (
+    SELECT AVG(salary) AS avg_salary
+    FROM employees
+) company_avg;
+```
+
+#### Where This Is Used
+
+FROM clause subqueries (derived tables) are useful for:
+
+- **Complex aggregations**: Pre-aggregating data before joining
+- **Reusing calculations**: Computing values once to reference multiple times
+- **Query simplification**: Breaking complex logic into manageable pieces
+- **Performance optimization**: Reducing the dataset before joining
+
+#### Real-World Example
+
+For a content recommendation system analyzing user behavior:
+
+```sql
+-- Content recommendation analysis - users viewing similar content
+SELECT
+    source_content.content_id,
+    source_content.title,
+    related_content.content_id AS related_content_id,
+    related_content.title AS related_title,
+    common_viewers.viewer_count,
+    common_viewers.viewer_count / source_viewers.total_viewers::float * 100 AS viewer_overlap_percent
+FROM content source_content
+JOIN (
+    -- Subquery with counts of viewers who watched both pieces of content
+    SELECT
+        v1.content_id AS source_id,
+        v2.content_id AS related_id,
+        COUNT(DISTINCT v1.user_id) AS viewer_count
+    FROM content_views v1
+    JOIN content_views v2 ON v1.user_id = v2.user_id AND v1.content_id != v2.content_id
+    WHERE v1.view_date >= CURRENT_DATE - INTERVAL '90 days'
+    AND v2.view_date >= CURRENT_DATE - INTERVAL '90 days'
+    GROUP BY v1.content_id, v2.content_id
+) common_viewers
+    ON source_content.content_id = common_viewers.source_id
+JOIN content related_content
+    ON common_viewers.related_id = related_content.content_id
+JOIN (
+    -- Subquery with total viewers per content item
+    SELECT
+        content_id,
+        COUNT(DISTINCT user_id) AS total_viewers
+    FROM content_views
+    WHERE view_date >= CURRENT_DATE - INTERVAL '90 days'
+    GROUP BY content_id
+) source_viewers
+    ON source_content.content_id = source_viewers.content_id
+WHERE source_content.content_id = 5000  -- ID of the current content being viewed
+ORDER BY viewer_overlap_percent DESC
+LIMIT 10;
+```
+
+This query would power a "People who watched this also watched..." recommendation feature, finding content with the highest viewer overlap percentage.
+
+### Correlated Subqueries
+
+These subqueries reference the outer query and are executed once for each row processed by the outer query.
+
+```sql
+-- Find employees who earn more than their department's average
+SELECT e1.employee_id, e1.first_name, e1.salary, e1.department_id
+FROM employees e1
+WHERE e1.salary > (
+    SELECT AVG(e2.salary)
+    FROM employees e2
+    WHERE e2.department_id = e1.department_id
+);
+```
+
+#### Where This Is Used
+
+Correlated subqueries are powerful for:
+
+- **Row-by-row comparisons**: Comparing each record to its related group
+- **Existence checks**: Determining if related records exist
+- **Filtering by subgroup**: Finding outliers within their own groups
+- **Conditional updates**: Modifying records based on related data
+
+#### Real-World Example
+
+For an anomaly detection system finding unusual spending patterns:
+
+```sql
+-- Unusual transaction detection for fraud monitoring
+SELECT
+    t.transaction_id,
+    t.customer_id,
+    c.full_name,
+    t.transaction_date,
+    t.amount,
+    t.merchant_name,
+    t.category,
+    -- Calculate how many standard deviations this transaction is from the customer's average
+    (t.amount - (
+        SELECT AVG(t_avg.amount)
+        FROM transactions t_avg
+        WHERE t_avg.customer_id = t.customer_id
+        AND t_avg.category = t.category
+        AND t_avg.transaction_date >= CURRENT_DATE - INTERVAL '180 days'
+    )) / NULLIF((
+        SELECT STDDEV(t_std.amount)
+        FROM transactions t_std
+        WHERE t_std.customer_id = t.customer_id
+        AND t_std.category = t.category
+        AND t_std.transaction_date >= CURRENT_DATE - INTERVAL '180 days'
+    ), 0) AS std_deviation_from_avg
+FROM transactions t
+JOIN customers c ON t.customer_id = c.customer_id
+WHERE
+    t.transaction_date >= CURRENT_DATE - INTERVAL '7 days'
+    AND t.amount > (
+        -- Amount is significantly higher than customer's average in this category
+        SELECT 2 * AVG(t_inner.amount)
+        FROM transactions t_inner
+        WHERE t_inner.customer_id = t.customer_id
+        AND t_inner.category = t.category
+        AND t_inner.transaction_date >= CURRENT_DATE - INTERVAL '180 days'
+        AND t_inner.transaction_date < CURRENT_DATE - INTERVAL '7 days'
+    )
+ORDER BY std_deviation_from_avg DESC;
+```
+
+This sophisticated query would help a fraud detection team by identifying transactions that deviate significantly from each customer's historical spending patterns in specific categories.
+
+## CTEs (Common Table Expressions)
+
+CTEs are temporary result sets that you can reference within a SELECT, INSERT, UPDATE, or DELETE statement. They make complex queries more readable and maintainable.
+
+```sql
+-- Find departments and their highest-paid employee
+WITH DepartmentMaxSalaries AS (
+    SELECT
+        department_id,
+        MAX(salary) AS max_salary
+    FROM employees
+    GROUP BY department_id
+)
+SELECT
+    d.department_name,
+    e.first_name,
+    e.last_name,
+    e.salary
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+JOIN DepartmentMaxSalaries dms
+    ON e.department_id = dms.department_id
+    AND e.salary = dms.max_salary;
+```
+
+#### Where This Is Used
+
+CTEs provide clarity and organization in:
+
+- **Complex multi-step queries**: Breaking down logic into digestible steps
+- **Self-referencing operations**: Recursive hierarchies and graphs
+- **Multiple references**: When you need to use the same derived table multiple times
+- **Query modularity**: Separating logical components for better readability
+
+#### Real-World Example
+
+For an e-commerce analytics dashboard showing customer segments and behavior:
+
+```sql
+-- Customer segmentation and recent purchase analysis
+WITH
+-- First CTE: Calculate customer lifetime value and purchase frequency
+CustomerMetrics AS (
+    SELECT
+        c.customer_id,
+        c.email,
+        c.signup_date,
+        COUNT(o.order_id) AS total_orders,
+        SUM(o.order_total) AS lifetime_value,
+        AVG(o.order_total) AS avg_order_value,
+        COUNT(o.order_id)::float /
+            GREATEST(EXTRACT(DAYS FROM (CURRENT_DATE - c.signup_date)) / 30, 1)
+            AS monthly_frequency
+    FROM customers c
+    LEFT JOIN orders o ON c.customer_id = o.customer_id
+    GROUP BY c.customer_id, c.email, c.signup_date
+),
+-- Second CTE: Define customer segments based on metrics
+CustomerSegments AS (
+    SELECT
+        customer_id,
+        email,
+        lifetime_value,
+        CASE
+            WHEN lifetime_value > 1000 AND monthly_frequency > 2 THEN 'VIP'
+            WHEN lifetime_value > 500 OR monthly_frequency > 1 THEN 'Regular'
+            WHEN total_orders > 0 THEN 'Occasional'
+            ELSE 'New/Inactive'
+        END AS segment
+    FROM CustomerMetrics
+),
+-- Third CTE: Get the most recent purchase for each customer
+RecentPurchases AS (
+    SELECT
+        o.customer_id,
+        o.order_id,
+        o.order_date,
+        o.order_total,
+        ROW_NUMBER() OVER (PARTITION BY o.customer_id ORDER BY o.order_date DESC) AS purchase_recency_rank
+    FROM orders o
+    WHERE o.order_date >= CURRENT_DATE - INTERVAL '90 days'
+)
+-- Main query: Combine all CTEs into final result
+SELECT
+    cs.customer_id,
+    cs.email,
+    cs.segment,
+    cm.total_orders,
+    cm.lifetime_value,
+    cm.avg_order_value,
+    cm.monthly_frequency,
+    rp.order_id AS most_recent_order_id,
+    rp.order_date AS most_recent_order_date,
+    rp.order_total AS most_recent_order_amount,
+    CURRENT_DATE - rp.order_date AS days_since_last_purchase
+FROM CustomerSegments cs
+JOIN CustomerMetrics cm ON cs.customer_id = cm.customer_id
+LEFT JOIN RecentPurchases rp ON cs.customer_id = rp.customer_id AND rp.purchase_recency_rank = 1
+ORDER BY
+    CASE cs.segment
+        WHEN 'VIP' THEN 1
+        WHEN 'Regular' THEN 2
+        WHEN 'Occasional' THEN 3
+        ELSE 4
+    END,
+    cm.lifetime_value DESC;
+```
+
+This query uses three CTEs to create a comprehensive customer analysis dashboard, showing segmentation, purchase history, and recency metrics - all in a much more readable format than if written with nested subqueries.
+
+### Recursive CTEs
+
+Recursive CTEs are particularly useful for hierarchical or graph-like data.
+
+```sql
+-- Generate employee hierarchy (org chart)
+WITH RECURSIVE EmployeeHierarchy AS (
+    -- Base case: Start with top-level employees (no manager)
+    SELECT
+        employee_id,
+        first_name,
+        last_name,
+        manager_id,
+        0 AS level
+    FROM employees
+    WHERE manager_id IS NULL
+
+    UNION ALL
+
+    -- Recursive case: Add employees who report to someone in our result set
+    SELECT
+        e.employee_id,
+        e.first_name,
+        e.last_name,
+        e.manager_id,
+        eh.level + 1
+    FROM employees e
+    JOIN EmployeeHierarchy eh ON e.manager_id = eh.employee_id
+)
+SELECT
+    employee_id,
+    first_name,
+    last_name,
+    level,
+    REPEAT('  ', level) || first_name || ' ' || last_name AS hierarchy
+FROM EmployeeHierarchy
+ORDER BY level, first_name;
+```
+
+#### Where This Is Used
+
+Recursive CTEs are ideal for:
+
+- **Organizational hierarchies**: Reporting structures and management chains
+- **Category trees**: Parent-child category relationships
+- **Bill of materials**: Component and subcomponent relationships
+- **Network paths**: Finding all possible paths between nodes
+- **Time-based sequences**: Event chains or workflows
+
+#### Real-World Example
+
+For a product catalog with nested categories:
+
+```sql
+-- Complete category hierarchy with product counts
+WITH RECURSIVE CategoryHierarchy AS (
+    -- Base case: Top-level categories
+    SELECT
+        c.category_id,
+        c.category_name,
+        c.parent_id,
+        c.category_name AS full_path,
+        1 AS level
+    FROM categories c
+    WHERE c.parent_id IS NULL
+
+    UNION ALL
+
+    -- Recursive case: Sub-categories
+    SELECT
+        c.category_id,
+        c.category_name,
+        c.parent_id,
+        ch.full_path || ' > ' || c.category_name,
+        ch.level + 1
+    FROM categories c
+    JOIN CategoryHierarchy ch ON c.parent_id = ch.category_id
+),
+CategoryProducts AS (
+    -- Count products per category, including indirect (via parent categories)
+    SELECT
+        c.category_id,
+        COUNT(p.product_id) AS direct_product_count,
+        SUM(CASE WHEN p.is_active = TRUE THEN 1 ELSE 0 END) AS active_product_count
+    FROM categories c
+    LEFT JOIN products p ON c.category_id = p.category_id
+    GROUP BY c.category_id
+)
+SELECT
+    ch.category_id,
+    ch.category_name,
+    ch.level,
+    ch.full_path,
+    cp.direct_product_count,
+    cp.active_product_count,
+    (
+        -- Count products in this category AND all its subcategories
+        SELECT COUNT(p.product_id)
+        FROM products p
+        JOIN categories subcat ON p.category_id = subcat.category_id
+        WHERE subcat.category_id = ch.category_id
+           OR EXISTS (
+               WITH RECURSIVE SubTree AS (
+                   SELECT sc.category_id
+                   FROM categories sc
+                   WHERE sc.parent_id = ch.category_id
+
+                   UNION ALL
+
+                   SELECT sc.category_id
+                   FROM categories sc
+                   JOIN SubTree st ON sc.parent_id = st.category_id
+               )
+               SELECT 1 FROM SubTree st WHERE subcat.category_id = st.category_id
+           )
+    ) AS total_product_count
+FROM CategoryHierarchy ch
+LEFT JOIN CategoryProducts cp ON ch.category_id = cp.category_id
+ORDER BY ch.full_path;
+```
+
+This query builds a complete category tree showing the full hierarchy path for each category, with product counts both directly in each category and in all of its subcategories - perfect for an e-commerce admin panel or catalog management system.
+
+## Window Functions
+
+Window functions perform calculations across a set of rows related to the current row. They're extremely powerful for analytics and frequently appear in advanced interviews.
+
+### ROW_NUMBER()
+
+```sql
+-- Assign sequential numbers to rows
+SELECT
+    employee_id,
+    first_name,
+    salary,
+    department_id,
+    ROW_NUMBER() OVER (ORDER BY salary DESC) AS overall_salary_rank,
+    ROW_NUMBER() OVER (PARTITION BY department_id ORDER BY salary DESC) AS dept_salary_rank
+FROM employees;
+```
+
+#### Where This Is Used
+
+ROW_NUMBER() is essential for:
+
+- **Pagination**: Creating page numbers for result sets
+- **Top N per group**: Finding the highest value in each category
+- **Eliminating duplicates**: Keeping only the first occurrence
+- **Sequential processing**: Adding sequence numbers to operations
+
+#### Real-World Example
+
+For an e-commerce site showing top products per category:
+
+```sql
+-- Query for "Featured Products" showing top 3 sellers per category
+WITH ranked_products AS (
+    SELECT
+        p.product_id,
+        p.product_name,
+        p.price,
+        p.image_url,
+        c.category_id,
+        c.category_name,
+        SUM(oi.quantity) AS total_sold,
+        ROW_NUMBER() OVER (
+            PARTITION BY c.category_id
+            ORDER BY SUM(oi.quantity) DESC
+        ) AS category_rank
+    FROM products p
+    JOIN categories c ON p.category_id = c.category_id
+    JOIN order_items oi ON p.product_id = oi.product_id
+    JOIN orders o ON oi.order_id = o.order_id
+    WHERE o.order_date >= CURRENT_DATE - INTERVAL '30 days'
+    GROUP BY p.product_id, p.product_name, p.price, p.image_url, c.category_id, c.category_name
+)
+SELECT
+    product_id,
+    product_name,
+    price,
+    image_url,
+    category_name,
+    total_sold
+FROM ranked_products
+WHERE category_rank <= 3
+ORDER BY category_name, category_rank;
+```
+
+This would power a featured products section showing the top 3 bestsellers in each category for the past month.
+
+### RANK() and DENSE_RANK()
+
+```sql
+-- Ranking with gaps for ties (RANK) and without gaps (DENSE_RANK)
+SELECT
+    employee_id,
+    first_name,
+    salary,
+    RANK() OVER (ORDER BY salary DESC) AS salary_rank,
+    DENSE_RANK() OVER (ORDER BY salary DESC) AS dense_salary_rank
+FROM employees;
+```
+
+#### Where This Is Used
+
+Ranking functions shine in:
+
+- **Leaderboards**: Customer loyalty programs or gaming scores
+- **Performance metrics**: Sales rankings or productivity metrics
+- **Percentile analysis**: Identifying top/bottom performers
+- **Competitive analysis**: Market share or position rankings
+
+#### Real-World Example
+
+For a sales dashboard ranking salesperson performance:
+
+```sql
+-- Sales team performance dashboard
+SELECT
+    e.employee_id,
+    e.first_name || ' ' || e.last_name AS sales_rep,
+    e.region,
+    COUNT(s.sale_id) AS num_sales,
+    SUM(s.sale_amount) AS total_sales,
+    RANK() OVER (ORDER BY SUM(s.sale_amount) DESC) AS overall_rank,
+    DENSE_RANK() OVER (PARTITION BY e.region ORDER BY SUM(s.sale_amount) DESC) AS region_rank,
+    CASE
+        WHEN DENSE_RANK() OVER (ORDER BY SUM(s.sale_amount) DESC) <= 3 THEN 'Top Performer'
+        WHEN DENSE_RANK() OVER (ORDER BY SUM(s.sale_amount) DESC) <= 10 THEN 'Star Performer'
+        WHEN DENSE_RANK() OVER (ORDER BY SUM(s.sale_amount) DESC) <= 20 THEN 'Solid Performer'
+        ELSE 'Needs Improvement'
+    END AS performance_category
+FROM employees e
+JOIN sales s ON e.employee_id = s.employee_id
+WHERE s.sale_date BETWEEN DATE_TRUNC('month', CURRENT_DATE) AND CURRENT_DATE
+GROUP BY e.employee_id, e.first_name, e.last_name, e.region
+ORDER BY total_sales DESC;
+```
+
+This would power a sales dashboard showing both overall company rankings and region-specific rankings, with performance categories based on rankings.
+
+### Analytical Functions
+
+```sql
+-- Calculate running total and percentage of department total
+SELECT
+    employee_id,
+    first_name,
+    department_id,
+    salary,
+    SUM(salary) OVER (
+        PARTITION BY department_id
+        ORDER BY salary DESC
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS running_total,
+    salary / SUM(salary) OVER (PARTITION BY department_id) * 100
+        AS pct_of_dept_total
+FROM employees;
+```
+
+#### Where This Is Used
+
+Analytical window functions are powerful for:
+
+- **Financial analysis**: Running balances or cumulative totals
+- **Market share analysis**: Percentage of total calculations
+- **Moving averages**: Trend analysis over sliding time windows
+- **Growth metrics**: Period-over-period comparisons
+
+#### Real-World Example
+
+For a financial dashboard showing transaction history with running balances:
+
+```sql
+-- Account transaction history with running balance
+SELECT
+    t.transaction_id,
+    t.transaction_date,
+    t.description,
+    t.category,
+    CASE
+        WHEN t.transaction_type = 'debit' THEN -t.amount
+        ELSE t.amount
+    END AS amount,
+    SUM(
+        CASE
+            WHEN t.transaction_type = 'debit' THEN -t.amount
+            ELSE t.amount
+        END
+    ) OVER (
+        ORDER BY t.transaction_date, t.transaction_id
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS running_balance,
+    LAG(t.transaction_date) OVER (ORDER BY t.transaction_date) AS previous_transaction_date,
+    t.transaction_date - LAG(t.transaction_date) OVER (ORDER BY t.transaction_date) AS days_since_last_transaction
+FROM transactions t
+WHERE t.account_id = 12345
+ORDER BY t.transaction_date DESC, t.transaction_id DESC
+LIMIT 50;
+```
+
+This query would power a bank account transaction history page, showing not just individual transactions but the running balance after each one and the time between transactions.transaction_type = 'debit' THEN -t.amount
+ELSE t.amount
+END
+) OVER (
+ORDER BY t.transaction_date, t.transaction_id
+ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+) AS running_balance,
+LAG(t.transaction_date) OVER (ORDER BY t.transaction_date) AS previous_transaction_date,
+t.transaction_date - LAG(t.transaction_date) OVER (ORDER BY t.transaction_date) AS days_since_last_transaction
+FROM transactions t
+WHERE t.account_id = 12345
+ORDER BY t.transaction_date DESC, t.transaction_id DESC
+LIMIT 50;
+
+````
+
+This query would power a bank account transaction history page, showing not just individual transactions but the running balance after each one and the time between transactions.
+
+#### Where This Is Used
+Analytical window functions are powerful for:
+
+- **Financial analysis**: Running balances or cumulative totals
+- **Market share analysis**: Percentage of total calculations
+- **Moving averages**: Trend analysis over sliding time windows
+- **Growth metrics**: Period-over-period comparisons
+
+#### Real-World Example
+For a financial dashboard showing transaction history with running balances:
+
+```sql
+-- Account transaction history with running balance
+SELECT
+    t.transaction_id,
+    t.transaction_date,
+    t.description,
+    t.category,
+    CASE
+        WHEN t.transaction_type = 'debit' THEN -t.amount
+        ELSE t.amount
+    END AS amount,
+    SUM(
+        CASE
+            WHEN t.
+
+## Data Manipulation Language (DML)
+
+While SELECT queries are most common in interviews, you should also be familiar with basic DML operations.
+
+### INSERT
+
+```sql
+-- Insert a single row
+INSERT INTO departments (department_id, department_name)
+VALUES (100, 'Research and Development');
+
+-- Insert multiple rows
+INSERT INTO departments (department_id, department_name)
+VALUES
+    (101, 'Marketing'),
+    (102, 'Customer Support');
+
+-- Insert based on a query
+INSERT INTO department_backup
+SELECT * FROM departments WHERE department_id < 50;
+````
+
+#### Where This Is Used
+
+INSERT operations are essential for:
+
+- **User registration**: Adding new users to the system
+- **Order processing**: Creating new orders and transactions
+- **Content creation**: Saving new articles, posts, or comments
+- **Data migration**: Transferring data between tables or databases
+- **System logging**: Recording events and actions
+
+#### Real-World Example
+
+For a user registration system with profile creation:
+
+```sql
+-- Registration process creating user account with profile
+-- Step 1: Insert into users table
+INSERT INTO users (username, email, password_hash, created_at, status)
+VALUES ('johndoe', 'john@example.com', 'hashed_password_value', CURRENT_TIMESTAMP, 'active')
+RETURNING user_id INTO @new_user_id;
+
+-- Step 2: Insert default settings with the new user ID
+INSERT INTO user_settings (user_id, notification_email, notification_push, theme)
+VALUES (@new_user_id, TRUE, TRUE, 'light');
+
+-- Step 3: Insert user profile information
+INSERT INTO user_profiles (
+    user_id,
+    first_name,
+    last_name,
+    bio,
+    location,
+    profile_image_url,
+    updated_at
+)
+VALUES (
+    @new_user_id,
+    'John',
+    'Doe',
+    'New user on the platform',
+    'New York, USA',
+    '/default/profile.jpg',
+    CURRENT_TIMESTAMP
+);
+```
+
+This multi-step process creates a complete user account with related records in different tables, maintaining data integrity across the system.
+
+### UPDATE
+
+```sql
+-- Update all rows in a table
+UPDATE employees
+SET salary = salary * 1.05;
+
+-- Update with conditions
+UPDATE employees
+SET salary = salary * 1.10
+WHERE performance_rating > 4;
+
+-- Update with joins
+UPDATE employees e
+SET e.salary = e.salary * 1.15
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+WHERE d.department_name = 'Sales';
+```
+
+#### Where This Is Used
+
+UPDATE operations are crucial for:
+
+- **User profile edits**: Changing user information or preferences
+- **Inventory management**: Adjusting stock levels after purchases
+- **Status changes**: Updating order status or task completion
+- **Batch processing**: Mass updates based on business rules
+- **Data corrections**: Fixing incorrect values
+
+#### Real-World Example
+
+For an e-commerce order processing system:
+
+```sql
+-- Order fulfillment process
+BEGIN TRANSACTION;
+
+-- Step 1: Update order status
+UPDATE orders
+SET
+    status = 'shipped',
+    shipped_date = CURRENT_TIMESTAMP,
+    tracking_number = 'SHIP12345678',
+    updated_at = CURRENT_TIMESTAMP
+WHERE order_id = 5000;
+
+-- Step 2: Update inventory for all items in the order
+UPDATE products p
+SET
+    stock_quantity = p.stock_quantity - oi.quantity,
+    units_sold = p.units_sold + oi.quantity,
+    last_sold_date = CURRENT_TIMESTAMP
+FROM order_items oi
+WHERE oi.product_id = p.product_id
+AND oi.order_id = 5000;
+
+-- Step 3: Insert shipment tracking record
+INSERT INTO shipments (order_id, carrier, tracking_number, shipped_date, status)
+VALUES (5000, 'FedEx', 'SHIP12345678', CURRENT_TIMESTAMP, 'in_transit');
+
+-- Step 4: Send notification (simulated with an entry in the notification queue)
+INSERT INTO notification_queue (user_id, notification_type, content, created_at)
+SELECT
+    o.user_id,
+    'order_shipped',
+    CONCAT('Your order #', o.order_id, ' has been shipped with tracking number SHIP12345678'),
+    CURRENT_TIMESTAMP
+FROM orders o
+WHERE o.order_id = 5000;
+
+COMMIT;
+```
+
+This transaction handles the complete order fulfillment process, updating multiple tables in a coordinated way to maintain data consistency across the e-commerce system.
+
+#### Where This Is Used
+
+UPDATE operations are crucial for:
+
+- **User profile edits**: Changing user information or preferences
+- **Inventory management**: Adjusting stock levels after purchases
+- **Status changes**: Updating order status or task completion
+- **Batch processing**: Mass updates based on business rules
+- **Data corrections**: Fixing incorrect values
+
+#### Real-World Example
+
+For an e-commerce order processing system:
+
+```sql
+-- Order fulfillment process
+BEGIN TRANSACTION;
+
+-- Step 1: Update order status
+UPDATE orders
+SET
+    status = 'shipped',
+    shipped_date = CURRENT_TIMESTAMP,
+    tracking_number = 'SHIP12345678',
+    updated_at = CURRENT_TIMESTAMP
+WHERE order_id = 5000;
+
+-- Step 2: Update inventory for all items in the order
+UPDATE products p
+SET
+    stock_quantity = p.stock_quantity - oi.quantity,
+    units_sold = p.units_sold + oi.quantity,
+    last_sold_date = CURRENT_TIMESTAMP
+FROM order_items oi
+WHERE oi.product_id = p.product_id
+AND oi.order_id = 5000;
+
+-- Step 3: Insert shipment tracking record
+INSERT INTO shipments (order_id, carrier, tracking_number, shipped_date, status)
+VALUES (5000, 'FedEx', 'SHIP12345678', CURRENT_TIMESTAMP, 'in_transit');
+
+-- Step 4: Send notification (simulated with an entry in the notification queue)
+INSERT INTO notification_queue (user_id, notification_type, content, created_at)
+SELECT
+    o.user_id,
+    'order_shipped',
+    CONCAT('Your order #', o.order_id, ' has been shipped with tracking number SHIP12345678'),
+    CURRENT_TIMESTAMP
+FROM orders o
+WHERE o.order_id = 5000;
+
+COMMIT;
+```
+
+This transaction handles the complete order fulfillment process, updating multiple tables in a coordinated way to maintain data consistency across the e-commerce system.
+
+### DELETE
+
+```sql
+-- Delete all rows
+DELETE FROM temp_employees;
+
+-- Delete with condition
+DELETE FROM employees
+WHERE termination_date < '2020-01-01';
+
+-- Delete with join
+DELETE FROM employees
+WHERE department_id IN (
+    SELECT department_id
+    FROM departments
+    WHERE is_active = FALSE
+);
+```
+
+#### Where This Is Used
+
+DELETE operations are necessary for:
+
+- **Data cleanup**: Removing temporary or outdated records
+- **User account deletion**: Complying with privacy requests
+- **Order cancellations**: Removing pending orders
+- **Content moderation**: Removing inappropriate content
+- **Data archiving**: Moving processed records to archive tables
+
+#### Real-World Example
+
+For a GDPR-compliant user data deletion process:
+
+```sql
+-- User account deletion process (GDPR compliance)
+BEGIN TRANSACTION;
+
+-- Step 1: Archive essential data for legal requirements
+INSERT INTO deleted_users_archive (
+    user_id,
+    registration_date,
+    deletion_date,
+    deletion_reason
+)
+SELECT
+    user_id,
+    created_at,
+    CURRENT_TIMESTAMP,
+    'User requested deletion'
+FROM users
+WHERE user_id = 1234;
+
+-- Step 2: Delete user's content (cascade deletion would handle some of this automatically)
+DELETE FROM posts WHERE user_id = 1234;
+DELETE FROM comments WHERE user_id = 1234;
+DELETE FROM user_activity_logs WHERE user_id = 1234;
+DELETE FROM user_logins WHERE user_id = 1234;
+
+-- Step 3: Anonymize data in transactions (can't delete for accounting purposes)
+UPDATE transactions
+SET
+    user_id = NULL,
+    anonymized = TRUE,
+    anonymized_date = CURRENT_TIMESTAMP
+WHERE user_id = 1234;
+
+-- Step 4: Delete core user data
+DELETE FROM user_profiles WHERE user_id = 1234;
+DELETE FROM user_settings WHERE user_id = 1234;
+DELETE FROM user_follows WHERE follower_id = 1234 OR following_id = 1234;
+DELETE FROM users WHERE user_id = 1234;
+
+-- Step 5: Record deletion in compliance log
+INSERT INTO compliance_logs (
+    event_type,
+    related_id,
+    action_taken,
+    timestamp
+)
+VALUES (
+    'user_deletion',
+    '1234',
+    'Full account deletion per user request',
+    CURRENT_TIMESTAMP
+);
+
+COMMIT;
+```
+
+This comprehensive transaction illustrates a compliant user deletion process, ensuring personal data is properly removed while maintaining necessary records for legal requirements.
+
+#### Where This Is Used
+
+DELETE operations are necessary for:
+
+- **Data cleanup**: Removing temporary or outdated records
+- **User account deletion**: Complying with privacy requests
+- **Order cancellations**: Removing pending orders
+- **Content moderation**: Removing inappropriate content
+- **Data archiving**: Moving processed records to archive tables
+
+#### Real-World Example
+
+For a GDPR-compliant user data deletion process:
+
+```sql
+-- User account deletion process (GDPR compliance)
+BEGIN TRANSACTION;
+
+-- Step 1: Archive essential data for legal requirements
+INSERT INTO deleted_users_archive (
+    user_id,
+    registration_date,
+    deletion_date,
+    deletion_reason
+)
+SELECT
+    user_id,
+    created_at,
+    CURRENT_TIMESTAMP,
+    'User requested deletion'
+FROM users
+WHERE user_id = 1234;
+
+-- Step 2: Delete user's content (cascade deletion would handle some of this automatically)
+DELETE FROM posts WHERE user_id = 1234;
+DELETE FROM comments WHERE user_id = 1234;
+DELETE FROM user_activity_logs WHERE user_id = 1234;
+DELETE FROM user_logins WHERE user_id = 1234;
+
+-- Step 3: Anonymize data in transactions (can't delete for accounting purposes)
+UPDATE transactions
+SET
+    user_id = NULL,
+    anonymized = TRUE,
+    anonymized_date = CURRENT_TIMESTAMP
+WHERE user_id = 1234;
+
+-- Step 4: Delete core user data
+DELETE FROM user_profiles WHERE user_id = 1234;
+DELETE FROM user_settings WHERE user_id = 1234;
+DELETE FROM user_follows WHERE follower_id = 1234 OR following_id = 1234;
+DELETE FROM users WHERE user_id = 1234;
+
+-- Step 5: Record deletion in compliance log
+INSERT INTO compliance_logs (
+    event_type,
+    related_id,
+    action_taken,
+    timestamp
+)
+VALUES (
+    'user_deletion',
+    '1234',
+    'Full account deletion per user request',
+    CURRENT_TIMESTAMP
+);
+
+COMMIT;
+```
+
+This comprehensive transaction illustrates a compliant user deletion process, ensuring personal data is properly removed while maintaining necessary records for legal requirements. all rows in a table
+UPDATE employees
+SET salary = salary \* 1.05;
+
+-- Update with conditions
+UPDATE employees
+SET salary = salary \* 1.10
+WHERE performance_rating > 4;
+
+-- Update with joins
+UPDATE employees e
+SET e.salary = e.salary \* 1.15
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+WHERE d.department_name = 'Sales';
+
+````
+
+### DELETE
+
+```sql
+-- Delete all rows
+DELETE FROM temp_employees;
+
+-- Delete with condition
+DELETE FROM employees
+WHERE termination_date < '2020-01-01';
+
+-- Delete with join
+DELETE FROM employees
+WHERE department_id IN (
+    SELECT department_id
+    FROM departments
+    WHERE is_active = FALSE
+);
+````
+
+## Advanced Interview Topics
+
+These topics often appear in more senior-level interviews or for database-focused roles.
+
+### UNION and UNION ALL
+
+```sql
+-- Combine results from two queries (UNION removes duplicates)
+SELECT employee_id, first_name, 'Active' AS status
+FROM current_employees
+UNION
+SELECT employee_id, first_name, 'Former' AS status
+FROM former_employees;
+
+-- UNION ALL keeps duplicates (faster)
+SELECT product_id, product_name, 'In Stock' AS status
+FROM in_stock_products
+UNION ALL
+SELECT product_id, product_name, 'On Order' AS status
+FROM ordered_products;
+```
+
+#### Where This Is Used
+
+UNION operations are valuable for:
+
+- **Combined reports**: Merging data from multiple sources
+- **Status tracking**: Showing items in different states
+- **Cross-database queries**: Combining data from separate databases
+- **Historical analysis**: Comparing current and archived data
+
+#### Real-World Example
+
+For an inventory management system that needs to show all product availability:
+
+```sql
+-- Comprehensive product availability report
+SELECT
+    product_id,
+    product_name,
+    stock_quantity,
+    'In Stock' AS status,
+    warehouse_location,
+    NULL AS expected_arrival,
+    last_updated
+FROM warehouse_inventory
+WHERE stock_quantity > 0
+
+UNION
+
+SELECT
+    p.product_id,
+    p.product_name,
+    0 AS stock_quantity,
+    'On Order' AS status,
+    NULL AS warehouse_location,
+    po.expected_arrival_date,
+    po.order_date AS last_updated
+FROM products p
+JOIN purchase_orders po ON p.product_id = po.product_id
+WHERE po.status = 'processing'
+AND p.product_id NOT IN (
+    SELECT product_id FROM warehouse_inventory WHERE stock_quantity > 0
+)
+
+UNION
+
+SELECT
+    p.product_id,
+    p.product_name,
+    0 AS stock_quantity,
+    'Out of Stock' AS status,
+    NULL AS warehouse_location,
+    NULL AS expected_arrival,
+    p.last_updated
+FROM products p
+WHERE p.product_id NOT IN (
+    SELECT product_id FROM warehouse_inventory WHERE stock_quantity > 0
+)
+AND p.product_id NOT IN (
+    SELECT product_id FROM purchase_orders WHERE status = 'processing'
+)
+AND p.is_active = TRUE
+
+ORDER BY product_name, status;
+```
+
+This query produces a unified view of all products showing their current availability status - whether they're in stock, on order, or out of stock - essential for inventory planning and customer service.
+
+### INTERSECT and EXCEPT
+
+```sql
+-- Find employees who are both managers and project leads
+SELECT employee_id FROM managers
+INTERSECT
+SELECT employee_id FROM project_leads;
+
+-- Find managers who are not project leads
+SELECT employee_id FROM managers
+EXCEPT
+SELECT employee_id FROM project_leads;
+```
+
+#### Where This Is Used
+
+INTERSECT and EXCEPT are useful for:
+
+- **Finding overlaps**: Users who belong to multiple groups
+- **Gap analysis**: Identifying missing relationships
+- **Comparison operations**: Finding differences between datasets
+- **Validation**: Verifying data consistency between systems
+
+#### Real-World Example
+
+For an HR system analyzing skill coverage:
+
+```sql
+-- Skills gap analysis for team project planning
+WITH
+-- Skills needed for the project
+ProjectRequiredSkills AS (
+    SELECT 'Python' AS skill_name
+    UNION SELECT 'SQL'
+    UNION SELECT 'Data Analysis'
+    UNION SELECT 'Machine Learning'
+    UNION SELECT 'Cloud Architecture'
+),
+-- Skills available in the team
+TeamAvailableSkills AS (
+    SELECT DISTINCT skill_name
+    FROM employee_skills es
+    JOIN team_members tm ON es.employee_id = tm.employee_id
+    WHERE tm.team_id = 5
+)
+-- Find skills needed but missing from the team
+SELECT
+    skill_name AS missing_skill,
+    (
+        -- Find employees outside the team who have this skill
+        SELECT STRING_AGG(e.first_name || ' ' || e.last_name, ', ')
+        FROM employees e
+        JOIN employee_skills es ON e.employee_id = es.employee_id
+        WHERE es.skill_name = prs.skill_name
+        AND e.employee_id NOT IN (SELECT employee_id FROM team_members WHERE team_id = 5)
+        LIMIT 5
+    ) AS potential_candidates
+FROM ProjectRequiredSkills prs
+EXCEPT
+SELECT skill_name FROM TeamAvailableSkills
+ORDER BY missing_skill;
+```
+
+This query identifies skills needed for a project but missing from the current team, along with potential candidates from other teams who possess those skills - valuable for project planning and resource allocation.
+
+### CASE Expressions
+
+```sql
+-- Create categories based on conditions
+SELECT
+    employee_id,
+    first_name,
+    salary,
+    CASE
+        WHEN salary < 50000 THEN 'Low'
+        WHEN salary BETWEEN 50000 AND 100000 THEN 'Medium'
+        ELSE 'High'
+    END AS salary_category
+FROM employees;
+
+-- CASE in aggregations
+SELECT
+    department_id,
+    SUM(CASE WHEN performance_rating > 4 THEN 1 ELSE 0 END) AS high_performers,
+    SUM(CASE WHEN performance_rating <= 4 THEN 1 ELSE 0 END) AS other_performers
+FROM employees
+GROUP BY department_id;
+```
+
+#### Where This Is Used
+
+CASE expressions are versatile for:
+
+- **Conditional formatting**: Transforming values for display
+- **Business logic implementation**: Applying complex rules
+- **Custom categorization**: Creating segments or buckets
+- **Conditional aggregation**: Counting or summing based on conditions
+- **Report customization**: Tailoring output to business needs
+
+#### Real-World Example
+
+For a financial dashboard showing loan application statuses:
+
+```sql
+-- Loan application risk analysis dashboard
+SELECT
+    application_id,
+    applicant_name,
+    loan_amount,
+    credit_score,
+    monthly_income,
+    -- Calculate debt-to-income ratio
+    (monthly_debt_payments / monthly_income) * 100 AS debt_to_income_ratio,
+
+    -- Income stability category
+    CASE
+        WHEN employment_length < 1 THEN 'New Employment'
+        WHEN employment_length BETWEEN 1 AND 3 THEN 'Established'
+        WHEN employment_length > 3 THEN 'Stable'
+        ELSE 'Unknown'
+    END AS employment_stability,
+
+    -- Credit score category
+    CASE
+        WHEN credit_score >= 750 THEN 'Excellent'
+        WHEN credit_score >= 700 THEN 'Good'
+        WHEN credit_score >= 650 THEN 'Fair'
+        WHEN credit_score >= 600 THEN 'Poor'
+        ELSE 'Very Poor'
+    END AS credit_rating,
+
+    -- Automated risk assessment
+    CASE
+        WHEN credit_score >= 700 AND (monthly_debt_payments / monthly_income) < 0.3
+            AND employment_length > 2 THEN 'Low Risk'
+        WHEN credit_score >= 650 AND (monthly_debt_payments / monthly_income) < 0.4
+            AND employment_length > 1 THEN 'Moderate Risk'
+        WHEN credit_score < 650 OR (monthly_debt_payments / monthly_income) > 0.5
+            OR employment_length < 1 THEN 'High Risk'
+        ELSE 'Medium Risk'
+    END AS risk_assessment,
+
+    -- Recommended action
+    CASE
+        WHEN credit_score >= 700 AND (monthly_debt_payments / monthly_income) < 0.3
+            AND employment_length > 2 THEN 'Approve'
+        WHEN credit_score < 600 OR (monthly_debt_payments / monthly_income) > 0.6 THEN 'Decline'
+        ELSE 'Manual Review'
+    END AS recommended_action
+FROM loan_applications
+WHERE application_date >= CURRENT_DATE - INTERVAL '30 days'
+ORDER BY
+    CASE
+        WHEN application_status = 'Pending' THEN 1
+        WHEN application_status = 'In Review' THEN 2
+        ELSE 3
+    END,
+    application_date DESC;
+```
+
+This comprehensive query demonstrates how CASE expressions can implement complex business rules for loan risk assessment, creating multiple derived attributes that help loan officers prioritize and process applications efficiently.
+
+### Indexes
+
+While you typically won't write index creation statements in an interview, you should understand index concepts:
+
+```sql
+-- Create a basic index
+CREATE INDEX idx_employees_last_name
+ON employees(last_name);
+
+-- Create a composite index
+CREATE INDEX idx_employees_dept_salary
+ON employees(department_id, salary DESC);
+
+-- Create a unique index
+CREATE UNIQUE INDEX idx_employees_email
+ON employees(email);
+```
+
+**Key index concepts to know:**
+
+- When to use indexes (high-read, low-write tables)
+- Index types (B-tree, hash, etc.)
+- Impact on queries (seeks vs. scans)
+- Downsides (storage space, write performance)
+
+#### Where This Is Used
+
+Indexes are critical for:
+
+- **Query optimization**: Speeding up searches and joins
+- **Enforcing uniqueness**: Preventing duplicate values
+- **Data integrity**: Supporting foreign key constraints
+- **Sorting efficiency**: Improving ORDER BY operations
+- **Covering indexes**: Satisfying queries directly from the index
+
+#### Real-World Example
+
+For an application supporting various access patterns:
+
+```sql
+-- Indexing strategy for a social media application
+-- User profile table
+CREATE TABLE users (
+    user_id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE,
+    email VARCHAR(100) UNIQUE,
+    password_hash VARCHAR(255),
+    full_name VARCHAR(100),
+    bio TEXT,
+    location VARCHAR(100),
+    joined_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_active TIMESTAMP,
+    is_verified BOOLEAN DEFAULT FALSE,
+    profile_image_url VARCHAR(255)
+);
+
+-- Indexes for user lookup patterns
+CREATE INDEX idx_users_username ON users(username);  -- Username search
+CREATE INDEX idx_users_email ON users(email);  -- Login by email
+CREATE INDEX idx_users_full_name ON users(full_name);  -- Search by name
+CREATE INDEX idx_users_location ON users(location);  -- Filter by location
+CREATE INDEX idx_users_last_active ON users(last_active DESC);  -- Sort by activity
+
+-- Posts table
+CREATE TABLE posts (
+    post_id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(user_id),
+    content TEXT,
+    posted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    likes_count INTEGER DEFAULT 0,
+    comments_count INTEGER DEFAULT 0,
+    is_public BOOLEAN DEFAULT TRUE
+);
+
+-- Indexes for post access patterns
+CREATE INDEX idx_posts_user_id ON posts(user_id);  -- Get user's posts
+CREATE INDEX idx_posts_posted_at ON posts(posted_at DESC);  -- Timeline, recent posts
+CREATE INDEX idx_posts_likes_count ON posts(likes_count DESC);  -- Popular posts
+CREATE INDEX idx_posts_user_time ON posts(user_id, posted_at DESC);  -- User timeline
+CREATE INDEX idx_posts_public_time ON posts(is_public, posted_at DESC)  -- Public timeline
+WHERE is_public = TRUE;  -- Partial index for public posts only
+
+-- Explain analysis showing effective index usage
+EXPLAIN ANALYZE
+SELECT p.post_id, p.content, p.posted_at, u.username, u.profile_image_url
+FROM posts p
+JOIN users u ON p.user_id = u.user_id
+WHERE p.is_public = TRUE
+ORDER BY p.posted_at DESC
+LIMIT 20;
+```
+
+This example demonstrates a thoughtful indexing strategy for a social media application, showing how different indexes support various access patterns while considering the trade-offs involved in index selection.
+
+## Common SQL Interview Questions
+
+Here are some common SQL interview questions with answers:
+
+### 1. Find duplicate values in a table
+
+```sql
+-- Find duplicate emails
+SELECT email, COUNT(*)
+FROM employees
+GROUP BY email
+HAVING COUNT(*) > 1;
+```
+
+#### Where This Is Used
+
+This pattern is crucial for:
+
+- **Data cleaning**: Identifying records that need deduplication
+- **Data integrity validation**: Finding constraint violations
+- **Customer management**: Identifying duplicate accounts
+- **Usage analysis**: Finding repeated entries for normalization
+
+#### Real-World Example
+
+For a customer database cleanup:
+
+```sql
+-- Customer record deduplication report
+WITH duplicate_analysis AS (
+    SELECT
+        LOWER(TRIM(email)) AS normalized_email,
+        COUNT(DISTINCT customer_id) AS customer_count,
+        STRING_AGG(customer_id::TEXT, ', ') AS customer_ids,
+        STRING_AGG(full_name, ', ') AS customer_names,
+        MIN(created_at) AS earliest_record,
+        MAX(created_at) AS latest_record,
+        SUM(lifetime_value) AS combined_value,
+        SUM(CASE WHEN last_order_date >= CURRENT_DATE - INTERVAL '90 days' THEN 1 ELSE 0 END) AS active_accounts
+    FROM customers
+    GROUP BY LOWER(TRIM(email))
+    HAVING COUNT(DISTINCT customer_id) > 1
+)
+SELECT
+    normalized_email,
+    customer_count,
+    customer_ids,
+    customer_names,
+    earliest_record,
+    latest_record,
+    combined_value,
+    active_accounts,
+    CASE
+        WHEN active_accounts > 1 THEN 'High Priority' -- Multiple active accounts
+        WHEN combined_value > 1000 THEN 'Medium Priority' -- High value
+        ELSE 'Low Priority'
+    END AS merge_priority
+FROM duplicate_analysis
+ORDER BY
+    active_accounts DESC,
+    combined_value DESC;
+```
+
+This query creates a comprehensive deduplication report showing all customers with the same email address, helping prioritize which duplicates to address first based on activity and value.
+
+### 2. Find the second-highest salary
+
+```sql
+-- Using subquery
+SELECT MAX(salary)
+FROM employees
+WHERE salary < (SELECT MAX(salary) FROM employees);
+
+-- Using window functions
+SELECT salary
+FROM (
+    SELECT
+        salary,
+        DENSE_RANK() OVER (ORDER BY salary DESC) AS salary_rank
+    FROM employees
+) ranked
+WHERE salary_rank = 2
+LIMIT 1;
+```
+
+#### Where This Is Used
+
+This pattern appears in:
+
+- **Compensation analysis**: Finding salary benchmarks
+- **Performance rankings**: Identifying runner-up performers
+- **Product analysis**: Finding second-most popular items
+- **Competition results**: Determining silver medal positions
+
+#### Real-World Example
+
+For a comprehensive salary analysis:
+
+```sql
+-- N-th highest salary with flexible rank selection
+CREATE FUNCTION getNthHighestSalary(N INT)
+RETURNS TABLE (
+    employee_id INT,
+    full_name VARCHAR,
+    department VARCHAR,
+    salary NUMERIC,
+    percentile NUMERIC
+) AS $
+BEGIN
+    RETURN QUERY
+    WITH ranked_salaries AS (
+        SELECT
+            e.employee_id,
+            e.first_name || ' ' || e.last_name AS full_name,
+            d.department_name AS department,
+            e.salary,
+            DENSE_RANK() OVER (ORDER BY e.salary DESC) AS salary_rank,
+            PERCENT_RANK() OVER (ORDER BY e.salary DESC) AS percentile_rank
+        FROM employees e
+        JOIN departments d ON e.department_id = d.department_id
+    )
+    SELECT
+        employee_id,
+        full_name,
+        department,
+        salary,
+        ROUND(percentile_rank * 100, 2) AS percentile
+    FROM ranked_salaries
+    WHERE salary_rank = N;
+END;
+$ LANGUAGE plpgsql;
+
+-- Usage examples
+SELECT * FROM getNthHighestSalary(2); -- 2nd highest
+SELECT * FROM getNthHighestSalary(3); -- 3rd highest
+```
+
+This function provides a flexible way to find any nth highest salary, with additional context about the employees and their standing in the overall salary distribution.
+
+### 3. Find departments with no employees
+
+```sql
+-- Using LEFT JOIN and IS NULL
+SELECT d.department_id, d.department_name
+FROM departments d
+LEFT JOIN employees e ON d.department_id = e.department_id
+WHERE e.employee_id IS NULL;
+
+-- Using NOT EXISTS
+SELECT d.department_id, d.department_name
+FROM departments d
+WHERE NOT EXISTS (
+    SELECT 1 FROM employees e
+    WHERE e.department_id = d.department_id
+);
+```
+
+#### Where This Is Used
+
+This pattern is valuable for:
+
+- **Resource utilization**: Finding unused entities
+- **Gap analysis**: Identifying areas without coverage
+- **Clean-up operations**: Finding orphaned records
+- **Opportunity identification**: Finding untapped markets or categories
+
+#### Real-World Example
+
+For an e-commerce product catalog audit:
+
+```sql
+-- Product category coverage analysis
+WITH category_stats AS (
+    SELECT
+        c.category_id,
+        c.category_name,
+        c.parent_category_id,
+        pc.category_name AS parent_category_name,
+        COUNT(p.product_id) AS product_count,
+        COUNT(CASE WHEN p.is_active = TRUE THEN p.product_id END) AS active_product_count,
+        COUNT(CASE WHEN p.stock_quantity > 0 THEN p.product_id END) AS in_stock_product_count,
+        COALESCE(AVG(p.price), 0) AS avg_price,
+        COALESCE(SUM(p.stock_quantity), 0) AS total_inventory,
+        COUNT(DISTINCT p.brand_id) AS brand_count
+    FROM categories c
+    LEFT JOIN categories pc ON c.parent_category_id = pc.category_id
+    LEFT JOIN products p ON c.category_id = p.category_id AND p.deleted_at IS NULL
+    GROUP BY c.category_id, c.category_name, c.parent_category_id, pc.category_name
+)
+SELECT
+    category_id,
+    category_name,
+    parent_category_name,
+    product_count,
+    active_product_count,
+    in_stock_product_count,
+    avg_price,
+    total_inventory,
+    brand_count,
+    CASE
+        WHEN product_count = 0 THEN 'Empty - No Products'
+        WHEN active_product_count = 0 THEN 'Inactive - No Active Products'
+        WHEN in_stock_product_count = 0 THEN 'Out of Stock - No Inventory'
+        WHEN in_stock_product_count < 5 THEN 'Low Inventory'
+        WHEN brand_count = 1 THEN 'Single Brand Only'
+        ELSE 'Healthy'
+    END AS category_status
+FROM category_stats
+ORDER BY
+    CASE
+        WHEN product_count = 0 THEN 1
+        WHEN active_product_count = 0 THEN 2
+        WHEN in_stock_product_count = 0 THEN 3
+        ELSE 4
+    END,
+    parent_category_name,
+    category_name;
+```
+
+This detailed audit helps e-commerce managers identify categories that need attention - whether they're completely empty, have no active products, or are running low on inventory.
+
+### 4. Calculate a running total
+
+```sql
+-- Running total of sales by date
+SELECT
+    sale_date,
+    sale_amount,
+    SUM(sale_amount) OVER (ORDER BY sale_date) AS running_total
+FROM sales;
+```
+
+#### Where This Is Used
+
+Running totals are essential for:
+
+- **Financial reports**: Cumulative revenue or expenses over time
+- **Inventory tracking**: Stock levels after each transaction
+- **Progress monitoring**: Cumulative task completion
+- **Performance analysis**: Cumulative metrics over time periods
+
+#### Real-World Example
+
+For a financial dashboard tracking monthly performance:
+
+```sql
+-- Monthly financial performance with running totals and goal progress
+WITH monthly_data AS (
+    SELECT
+        DATE_TRUNC('month', transaction_date) AS month,
+        SUM(CASE WHEN transaction_type = 'revenue' THEN amount ELSE 0 END) AS revenue,
+        SUM(CASE WHEN transaction_type = 'expense' THEN amount ELSE 0 END) AS expenses,
+        SUM(CASE
+            WHEN transaction_type = 'revenue' THEN amount
+            WHEN transaction_type = 'expense' THEN -amount
+            ELSE 0
+        END) AS profit
+    FROM financial_transactions
+    WHERE transaction_date >= DATE_TRUNC('year', CURRENT_DATE)
+    GROUP BY DATE_TRUNC('month', transaction_date)
+),
+monthly_targets AS (
+    SELECT
+        month,
+        revenue_target,
+        expense_budget,
+        revenue_target - expense_budget AS profit_target
+    FROM financial_targets
+    WHERE month >= DATE_TRUNC('year', CURRENT_DATE)
+)
+SELECT
+    md.month,
+
+    -- Monthly figures
+    md.revenue,
+    mt.revenue_target,
+    ROUND((md.revenue / NULLIF(mt.revenue_target, 0)) * 100, 1) AS revenue_target_pct,
+
+    md.expenses,
+    mt.expense_budget,
+    ROUND((md.expenses / NULLIF(mt.expense_budget, 0)) * 100, 1) AS budget_utilized_pct,
+
+    md.profit,
+    mt.profit_target,
+    ROUND((md.profit / NULLIF(mt.profit_target, 0)) * 100, 1) AS profit_target_pct,
+
+    -- Running totals
+    SUM(md.revenue) OVER (ORDER BY md.month) AS ytd_revenue,
+    SUM(md.expenses) OVER (ORDER BY md.month) AS ytd_expenses,
+    SUM(md.profit) OVER (ORDER BY md.month) AS ytd_profit,
+
+    -- Running totals of targets
+    SUM(mt.revenue_target) OVER (ORDER BY md.month) AS ytd_revenue_target,
+    SUM(mt.expense_budget) OVER (ORDER BY md.month) AS ytd_expense_budget,
+    SUM(mt.profit_target) OVER (ORDER BY md.month) AS ytd_profit_target,
+
+    -- Year-to-date performance
+    ROUND((SUM(md.revenue) OVER (ORDER BY md.month) /
+           NULLIF(SUM(mt.revenue_target) OVER (ORDER BY md.month), 0)) * 100, 1) AS ytd_revenue_performance,
+    ROUND((SUM(md.profit) OVER (ORDER BY md.month) /
+           NULLIF(SUM(mt.profit_target) OVER (ORDER BY md.month), 0)) * 100, 1) AS ytd_profit_performance
+
+FROM monthly_data md
+JOIN monthly_targets mt ON md.month = mt.month
+ORDER BY md.month;
+```
+
+This comprehensive financial dashboard shows both monthly performance and year-to-date running totals, with target comparisons for revenue, expenses, and profit - providing a complete picture of financial health throughout the year.
+
+### 5. Find employees with salaries higher than their department average
+
+```sql
+SELECT
+    e.employee_id,
+    e.first_name,
+    e.last_name,
+    e.salary,
+    e.department_id,
+    dept_avg.avg_salary
+FROM employees e
+JOIN (
+    SELECT
+        department_id,
+        AVG(salary) AS avg_salary
+    FROM employees
+    GROUP BY department_id
+) dept_avg ON e.department_id = dept_avg.department_id
+WHERE e.salary > dept_avg.avg_salary;
+```
+
+#### Where This Is Used
+
+This pattern is valuable for:
+
+- **Performance analysis**: Identifying top performers relative to peers
+- **Compensation equity**: Finding salary outliers within groups
+- **Resource allocation**: Identifying disproportionate resource usage
+- **Anomaly detection**: Finding values that deviate from group norms
+
+#### Real-World Example
+
+For a comprehensive sales performance analysis:
+
+```sql
+-- Sales rep performance relative to region and team averages
+WITH sales_performance AS (
+    SELECT
+        e.employee_id,
+        e.first_name || ' ' || e.last_name AS sales_rep,
+        e.hire_date,
+        t.team_name,
+        r.region_name,
+        SUM(s.sale_amount) AS total_sales,
+        COUNT(s.sale_id) AS num_deals,
+        AVG(s.sale_amount) AS avg_deal_size,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY s.sale_amount) AS median_deal_size
+    FROM employees e
+    JOIN sales s ON e.employee_id = s.employee_id
+    JOIN teams t ON e.team_id = t.team_id
+    JOIN regions r ON e.region_id = r.region_id
+    WHERE s.sale_date BETWEEN DATE_TRUNC('year', CURRENT_DATE) AND CURRENT_DATE
+    GROUP BY e.employee_id, e.first_name, e.last_name, e.hire_date, t.team_name, r.region_name
+),
+team_averages AS (
+    SELECT
+        team_name,
+        AVG(total_sales) AS team_avg_sales,
+        AVG(num_deals) AS team_avg_deals,
+        AVG(avg_deal_size) AS team_avg_deal_size
+    FROM sales_performance
+    GROUP BY team_name
+),
+region_averages AS (
+    SELECT
+        region_name,
+        AVG(total_sales) AS region_avg_sales,
+        AVG(num_deals) AS region_avg_deals,
+        AVG(avg_deal_size) AS region_avg_deal_size
+    FROM sales_performance
+    GROUP BY region_name
+),
+company_averages AS (
+    SELECT
+        AVG(total_sales) AS company_avg_sales,
+        AVG(num_deals) AS company_avg_deals,
+        AVG(avg_deal_size) AS company_avg_deal_size
+    FROM sales_performance
+)
+SELECT
+    sp.sales_rep,
+    sp.team_name,
+    sp.region_name,
+    EXTRACT(YEAR FROM AGE(CURRENT_DATE, sp.hire_date)) AS years_experience,
+
+    -- Sales metrics
+    sp.total_sales,
+    sp.num_deals,
+    sp.avg_deal_size,
+    sp.median_deal_size,
+
+    -- Comparison to team average
+    ROUND(((sp.total_sales / ta.team_avg_sales) - 1) * 100) AS pct_vs_team_avg,
+
+    -- Comparison to region average
+    ROUND(((sp.total_sales / ra.region_avg_sales) - 1) * 100) AS pct_vs_region_avg,
+
+    -- Comparison to company average
+    ROUND(((sp.total_sales / ca.company_avg_sales) - 1) * 100) AS pct_vs_company_avg,
+
+    -- Performance category
+    CASE
+        WHEN sp.total_sales > ta.team_avg_sales * 1.5 AND sp.total_sales > ra.region_avg_sales * 1.3 THEN 'Star Performer'
+        WHEN sp.total_sales > ta.team_avg_sales AND sp.total_sales > ra.region_avg_sales THEN 'Above Average'
+        WHEN sp.total_sales < ta.team_avg_sales * 0.7 THEN 'Needs Improvement'
+        ELSE 'Average Performer'
+    END AS performance_category
+
+FROM sales_performance sp
+JOIN team_averages ta ON sp.team_name = ta.team_name
+JOIN region_averages ra ON sp.region_name = ra.region_name
+CROSS JOIN company_averages ca
+ORDER BY pct_vs_company_avg DESC;
+```
+
+This comprehensive sales performance dashboard compares each sales representative to their team average, regional average, and company-wide average, providing multiple reference points to identify top performers and those who may need additional support.
+
+## Final Tips for SQL Interviews
+
+1. **Start simple**: Begin with the most basic solution that works, then optimize if needed
+2. **Talk through your approach**: Explain your thought process as you write the query
+3. **Consider edge cases**: Think about null values, empty results, and performance
+4. **Check your joins**: Make sure you're using the right type of join for the problem
+5. **Pay attention to aggregations**: GROUP BY must include all non-aggregated columns
+6. **Use clear aliasing**: Make your query readable with good table and column aliases
+7. **Practice performance thinking**: Be ready to explain how your queries could be optimized
+
+### Real-World SQL Optimization Example
+
+To demonstrate performance thinking in interviews, here's a real-world example of query optimization:
+
+```sql
+-- Original query (inefficient)
+SELECT
+    o.order_id,
+    o.order_date,
+    c.customer_name,
+    SUM(oi.quantity * oi.unit_price) AS order_total
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN customers c ON o.customer_id = c.customer_id
+WHERE o.order_date >= '2023-01-01'
+GROUP BY o.order_id, o.order_date, c.customer_name;
+
+-- Optimized query
+SELECT
+    o.order_id,
+    o.order_date,
+    c.customer_name,
+    o.order_total -- Assuming this is pre-calculated in orders table
+FROM orders o
+JOIN customers c ON o.customer_id = c.customer_id
+WHERE o.order_date >= '2023-01-01';
+```
+
+**Explanation of optimizations:**
+
+1. Used pre-calculated `order_total` instead of summing order items on-the-fly
+2. Eliminated unnecessary join to `order_items` table
+3. Simplified GROUP BY since aggregation is no longer needed
+4. Added appropriate indexes:
+   ```sql
+   CREATE INDEX idx_orders_date ON orders(order_date);
+   CREATE INDEX idx_orders_customer ON orders(customer_id);
+   ```
+
+This optimization could improve query performance from seconds to milliseconds for large datasets.
+
+## SQL in Different Career Paths
+
+SQL is valuable across various tech roles, but emphasis varies:
+
+**Backend Developers**
+
+- Focus on: Efficient queries, indexes, transactions
+- Common tasks: Building APIs that retrieve or manipulate data
+- Example use case: Creating RESTful endpoints that query product information
+
+**Data Analysts**
+
+- Focus on: Complex aggregations, window functions, CTEs
+- Common tasks: Creating reports and dashboards
+- Example use case: Building executive dashboards showing sales trends
+
+**Data Engineers**
+
+- Focus on: ETL processes, performance optimization, large datasets
+- Common tasks: Designing data pipelines and schemas
+- Example use case: Creating incremental data loading processes
+
+**DevOps Engineers**
+
+- Focus on: Monitoring queries, backup/restore, replication
+- Common tasks: Ensuring database health and reliability
+- Example use case: Setting up monitoring for slow queries
+
+**Full-stack Developers**
+
+- Focus on: Basic CRUD operations, ORM integration
+- Common tasks: Building end-to-end features touching the database
+- Example use case: Creating a user profile management system
+
+## Resources for Practice
+
+Here are some resources I've found incredibly helpful for SQL interview prep:
+
+1. [LeetCode Database Section](https://leetcode.com/problemset/database/)
+2. [HackerRank SQL Challenges](https://www.hackerrank.com/domains/sql)
+3. [Mode Analytics SQL Tutorial](https://mode.com/sql-tutorial/)
+4. [SQL Zoo](https://sqlzoo.net/wiki/SQL_Tutorial)
+5. [PostgreSQL Documentation](https://www.postgresql.org/docs/current/tutorial-sql.html)
+
+## Conclusion
+
+SQL remains one of the most valuable skills for developers across many disciplines. Being able to efficiently query and manipulate data is essential whether you're working on the backend, analyzing data, or even building frontend applications that consume APIs backed by databases.
+
+The good news is that while SQL interview questions can be challenging, they follow consistent patterns. With practice and a solid understanding of the concepts covered in this post, you'll be well-prepared to tackle SQL questions in your next technical interview.
+
+In my experience, interviewers aren't looking for perfect syntax - they want to see your thought process, problem-solving approach, and understanding of database concepts. Don't be afraid to ask clarifying questions or walk through your logic step by step.
+
+Good luck with your interviews! Let me know in the comments if there are any specific SQL concepts or questions you'd like me to cover in more depth. 👍
