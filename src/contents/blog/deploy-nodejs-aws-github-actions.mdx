@@ -1,0 +1,512 @@
+---
+title: 'Deploying Node.js Apps to AWS EC2 with GitHub Actions'
+publishedAt: '2024-04-22'
+lastUpdated: '2025-06-19'
+description: 'A complete guide to setting up CI/CD pipeline for Node.js applications using GitHub Actions and AWS EC2 - from zero to automated deployment.'
+englishOnly: 'true'
+banner: 'https://ibs-data-storage.s3.us-east-1.amazonaws.com/p/b/blog/deploy-nodejs-aws-github-actions/emile-perron-xrVDYZRGdw4-unsplash.jpg'
+tags: 'devops,aws,nodejs,git,cicd'
+slug: 'deploy-nodejs-aws-github-actions'
+---
+
+Ever get tired of manually deploying your Node.js apps every time you push a change? I've been there - it's a pain and honestly, pretty error-prone. Today I'm going to walk you through setting up a bulletproof CI/CD pipeline using GitHub Actions and AWS EC2.
+
+By the end of this tutorial, you'll have automated deployments that trigger every time you push to your main branch. No more SSH-ing into servers and running deployment scripts manually!
+
+## TL;DR: What We're Building
+
+- **Automated deployment pipeline** triggered by GitHub pushes
+- **GitHub Actions workflow** that builds and deploys your Node.js app
+- **AWS EC2 integration** with proper security setup
+- **Zero-downtime deployments** using PM2 process manager
+- **Real-world production setup** that you can actually use
+
+Let's dive in! 🚀
+
+## Prerequisites (Don't Skip This!)
+
+Before we start, make sure you have:
+
+- A Node.js application ready for deployment (with `package.json`)
+- AWS account with an EC2 instance running (Ubuntu/Amazon Linux recommended)
+- GitHub repository containing your Node.js code
+- Basic familiarity with SSH and AWS console
+
+**Note:** This tutorial assumes you're comfortable with basic AWS operations. If you're new to EC2, I'd recommend setting up a simple instance first and getting familiar with SSH access.
+
+## Step 1: Preparing Your EC2 Instance
+
+First, let's get your EC2 instance ready for deployments. SSH into your instance and install the necessary tools:
+
+```bash
+# Update system packages
+sudo apt update && sudo apt upgrade -y
+
+# Install Node.js (using NodeSource repository for latest LTS)
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install PM2 globally for process management
+sudo npm install -g pm2
+
+# Install nginx for reverse proxy (optional but recommended)
+sudo apt install nginx -y
+
+# Create application directory
+sudo mkdir -p /var/www/your-app-name
+sudo chown -R $USER:$USER /var/www/your-app-name
+```
+
+### Setting Up PM2 Ecosystem File
+
+Create an ecosystem file for PM2 to manage your application:
+
+```javascript
+// ecosystem.config.js
+module.exports = {
+  apps: [
+    {
+      name: 'your-app-name',
+      script: './app.js', // or your main application file
+      cwd: '/var/www/your-app-name',
+      instances: 'max',
+      exec_mode: 'cluster',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3000,
+      },
+      error_file: '/var/log/pm2/your-app-name.err.log',
+      out_file: '/var/log/pm2/your-app-name.out.log',
+      log_file: '/var/log/pm2/your-app-name.combined.log',
+    },
+  ],
+};
+```
+
+Copy this file to your EC2 instance:
+
+```bash
+scp ecosystem.config.js ec2-user@your-ec2-ip:/var/www/your-app-name/
+```
+
+## Step 2: Configuring SSH Keys for Secure Access
+
+This is crucial for security! We'll set up SSH key authentication so GitHub Actions can access your EC2 instance.
+
+### Generate SSH Key Pair
+
+On your local machine:
+
+```bash
+# Generate a new SSH key pair specifically for deployment
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/deploy-key
+
+# This creates:
+# ~/.ssh/deploy-key (private key - keep this secret!)
+# ~/.ssh/deploy-key.pub (public key - goes on EC2)
+```
+
+### Add Public Key to EC2
+
+Copy the public key to your EC2 instance:
+
+```bash
+# Copy public key to EC2
+ssh-copy-id -i ~/.ssh/deploy-key.pub ec2-user@your-ec2-ip
+
+# Or manually:
+cat ~/.ssh/deploy-key.pub | ssh ec2-user@your-ec2-ip "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+```
+
+### Test SSH Connection
+
+```bash
+ssh -i ~/.ssh/deploy-key ec2-user@your-ec2-ip
+```
+
+If this works without asking for a password, you're golden! 🎉
+
+## Step 3: Creating the GitHub Actions Workflow
+
+Now for the magic part - let's create a workflow that automatically deploys your app when you push changes.
+
+Create `.github/workflows/deploy.yml` in your repository:
+
+```yaml
+name: Deploy Node.js App to AWS EC2
+
+on:
+  push:
+    branches: [main, master] # Trigger on pushes to main/master
+  workflow_dispatch: # Allow manual triggering
+
+env:
+  NODE_VERSION: '18'
+  EC2_HOST: ${{ secrets.EC2_HOST }}
+  EC2_USER: ${{ secrets.EC2_USER }}
+  APP_DIR: '/var/www/your-app-name'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+        continue-on-error: false
+
+      - name: Run linting
+        run: npm run lint
+        continue-on-error: true
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' # Only deploy from main branch
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --only=production
+
+      - name: Build application
+        run: npm run build
+        continue-on-error: false
+
+      - name: Create deployment package
+        run: |
+          mkdir -p deployment
+          cp -r . deployment/
+          cd deployment
+          # Remove unnecessary files
+          rm -rf .git .github node_modules/.cache
+          tar -czf ../deployment.tar.gz .
+          cd ..
+          ls -la deployment.tar.gz
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy-key
+          chmod 600 ~/.ssh/deploy-key
+          ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        run: |
+          # Upload deployment package
+          scp -i ~/.ssh/deploy-key deployment.tar.gz ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:/tmp/
+
+          # Deploy on EC2
+          ssh -i ~/.ssh/deploy-key ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'EOF'
+            set -e
+            
+            # Create backup of current deployment
+            if [ -d "${{ env.APP_DIR }}" ]; then
+              sudo cp -r "${{ env.APP_DIR }}" "${{ env.APP_DIR }}.backup.$(date +%Y%m%d_%H%M%S)"
+            fi
+            
+            # Create app directory if it doesn't exist
+            sudo mkdir -p "${{ env.APP_DIR }}"
+            sudo chown -R $USER:$USER "${{ env.APP_DIR }}"
+            
+            # Extract new deployment
+            cd "${{ env.APP_DIR }}"
+            tar -xzf /tmp/deployment.tar.gz
+            
+            # Install production dependencies
+            npm ci --only=production
+            
+            # Run any post-deployment scripts
+            if [ -f "scripts/post-deploy.sh" ]; then
+              chmod +x scripts/post-deploy.sh
+              ./scripts/post-deploy.sh
+            fi
+            
+            # Restart application with PM2
+            if pm2 list | grep -q "your-app-name"; then
+              pm2 restart your-app-name --update-env
+            else
+              pm2 start ecosystem.config.js
+            fi
+            
+            # Save PM2 process list
+            pm2 save
+            
+            # Clean up
+            rm -f /tmp/deployment.tar.gz
+            
+            echo "Deployment completed successfully!"
+          EOF
+
+      - name: Verify deployment
+        run: |
+          ssh -i ~/.ssh/deploy-key ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'EOF'
+            # Check if application is running
+            if pm2 list | grep -q "your-app-name.*online"; then
+              echo "✅ Application is running successfully"
+              pm2 info your-app-name
+            else
+              echo "❌ Application failed to start"
+              pm2 logs your-app-name --lines 50
+              exit 1
+            fi
+          EOF
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "🚀 Deployment successful!"
+          else
+            echo "💥 Deployment failed!"
+          fi
+```
+
+This workflow is pretty comprehensive! It:
+
+- Runs tests before deploying (because broken deployments suck)
+- Creates a clean deployment package
+- Backs up the current version before deploying
+- Uses PM2 for zero-downtime restarts
+- Verifies the deployment worked
+
+## Step 4: Setting Up GitHub Secrets
+
+Your workflow needs access to sensitive information. Let's add these as GitHub secrets:
+
+1. Go to your GitHub repository
+2. Click **Settings** → **Secrets and variables** → **Actions**
+3. Add these repository secrets:
+
+| Secret Name   | Value                           | Description                        |
+| ------------- | ------------------------------- | ---------------------------------- |
+| `EC2_HOST`    | `your-ec2-ip-address`           | Your EC2 instance IP or domain     |
+| `EC2_USER`    | `ec2-user` (or `ubuntu`)        | SSH username for your EC2 instance |
+| `EC2_SSH_KEY` | Contents of `~/.ssh/deploy-key` | Private SSH key for deployment     |
+
+**Important:** Never commit your private SSH key to git! Always use GitHub secrets.
+
+## Step 5: Preparing Your Node.js Application
+
+Your app needs a few scripts in `package.json` for the deployment to work smoothly:
+
+```json
+{
+  "name": "your-awesome-app",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "build": "echo 'Build completed'",
+    "test": "jest",
+    "lint": "eslint .",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop ecosystem.config.js",
+    "pm2:restart": "pm2 restart ecosystem.config.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0",
+    "jest": "^29.0.0",
+    "eslint": "^8.0.0"
+  }
+}
+```
+
+### Optional: Post-Deployment Script
+
+Create `scripts/post-deploy.sh` for any custom deployment tasks:
+
+```bash
+#!/bin/bash
+set -e
+
+echo "Running post-deployment tasks..."
+
+# Database migrations (if applicable)
+# npm run migrate
+
+# Clear application cache
+# npm run cache:clear
+
+# Warm up the application
+echo "Warming up application..."
+curl -f http://localhost:3000/health || echo "Health check endpoint not available"
+
+echo "Post-deployment tasks completed!"
+```
+
+## Step 6: Testing Your Deployment Pipeline
+
+Now for the moment of truth! Let's test our pipeline:
+
+1. Make a small change to your application
+2. Commit and push to the main branch:
+
+```bash
+git add .
+git commit -m "feat: test automated deployment"
+git push origin main
+```
+
+3. Go to your GitHub repository → **Actions** tab
+4. Watch the deployment workflow run!
+
+If everything goes well, you should see:
+
+- ✅ Tests passing
+- ✅ Build completing
+- ✅ Deployment succeeding
+- ✅ Application running on your EC2 instance
+
+## Common Issues and Troubleshooting
+
+Honestly, deployments can be tricky. Here are the most common issues I've encountered:
+
+### 1. SSH Connection Failures
+
+```bash
+# Test SSH connection manually
+ssh -i ~/.ssh/deploy-key ec2-user@your-ec2-ip
+
+# Check EC2 security group allows SSH (port 22)
+# Verify SSH key permissions: chmod 600 ~/.ssh/deploy-key
+```
+
+### 2. PM2 Process Issues
+
+```bash
+# SSH into EC2 and check PM2 status
+pm2 list
+pm2 logs your-app-name
+pm2 restart your-app-name
+```
+
+### 3. Port Conflicts
+
+```bash
+# Check what's running on your port
+sudo netstat -tlnp | grep :3000
+
+# Kill conflicting processes if needed
+sudo kill -9 <process-id>
+```
+
+### 4. Permission Issues
+
+```bash
+# Fix app directory permissions
+sudo chown -R $USER:$USER /var/www/your-app-name
+chmod -R 755 /var/www/your-app-name
+```
+
+## Advanced: Adding Environment Variables
+
+For production apps, you'll need environment variables. Create `.env.production` on your EC2 instance:
+
+```bash
+# On EC2: /var/www/your-app-name/.env.production
+NODE_ENV=production
+PORT=3000
+DATABASE_URL=your-database-url
+API_SECRET=your-secret-key
+```
+
+Update your ecosystem config to load these:
+
+```javascript
+// ecosystem.config.js
+module.exports = {
+  apps: [
+    {
+      name: 'your-app-name',
+      script: './app.js',
+      cwd: '/var/www/your-app-name',
+      instances: 'max',
+      exec_mode: 'cluster',
+      env_file: '.env.production', // Load environment variables
+    },
+  ],
+};
+```
+
+## Setting Up Nginx (Bonus Round!)
+
+For production apps, you'll want a reverse proxy. Here's a basic Nginx config:
+
+```nginx
+# /etc/nginx/sites-available/your-app-name
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+Enable the site:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/your-app-name /etc/nginx/sites-enabled/
+sudo nginx -t  # Test configuration
+sudo systemctl restart nginx
+```
+
+## Key Takeaways
+
+Here are the 5 most important things to remember:
+
+1. **Security first**: Always use SSH keys, never passwords. Store secrets in GitHub Secrets, never in code.
+
+2. **Test before deploy**: The workflow runs tests first to catch issues early. Don't skip this!
+
+3. **Backup strategy**: The workflow creates backups before each deployment. This has saved me countless times.
+
+4. **Monitor your deployments**: Watch the GitHub Actions logs and PM2 status after deployments.
+
+5. **Start simple**: This setup works for most Node.js apps, but you can expand it as your needs grow.
+
+## What's Next?
+
+This setup gets you a solid foundation, but there's always room for improvement:
+
+- Add **blue-green deployments** for zero-downtime updates
+- Implement **rollback functionality** for quick recovery
+- Set up **monitoring and alerts** with CloudWatch
+- Add **database migration** handling
+- Configure **SSL certificates** with Let's Encrypt
+
+Got this working? I'd love to hear about your deployment setup! Drop a comment below if you run into any issues or have suggestions for improvements.
+
+Happy deploying! 🚀
