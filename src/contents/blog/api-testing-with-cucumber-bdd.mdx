@@ -1,0 +1,473 @@
+---
+title: 'API Testing with Cucumber BDD: Because Manual Testing is So 2010'
+publishedAt: '2024-09-15'
+lastUpdated: '2025-07-05'
+description: 'A practical guide to automating API tests with Cucumber BDD, REST Assured, and a sprinkle of sanity. Learn how to write tests that even your PM can understand!'
+englishOnly: 'true'
+banner: 'https://ibs-data-storage.s3.us-east-1.amazonaws.com/p/b/blog/api-testing-with-cucumber-bdd/evie-s-kqJfP-lrl-8-unsplash.jpg'
+tags: 'api,testing,cucumber,bdd,automation'
+slug: 'api-testing-with-cucumber-bdd'
+---
+
+Ever found yourself manually testing APIs with Postman, clicking "Send" a hundred times, and thinking "there has to be a better way"? Well, there is! Today I'm going to show you how to automate your API testing using Cucumber BDD - and the best part? Your tests will be so readable that even non-technical folks can understand what's happening.
+
+## TL;DR: What We're Building
+
+- **Automated API tests** that read like plain English
+- **BDD scenarios** using Cucumber and Gherkin syntax
+- **REST Assured integration** for powerful API testing
+- **Reusable step definitions** that make writing new tests a breeze
+- **CI/CD-ready setup** with proper reporting
+
+Let's dive in! 🚀
+
+## Why Cucumber for API Testing?
+
+Before we jump into code, let me share a quick story. I once worked on a project where the API documentation was... let's say "creatively interpreted" by different teams. The frontend expected one thing, the backend delivered another, and QA was stuck in the middle playing translator.
+
+Enter Cucumber BDD. By writing our API tests in plain English, suddenly everyone - developers, testers, product managers - could understand and agree on what the API should do. It was like magic! ✨
+
+Here's what a Cucumber test looks like:
+
+```gherkin
+Scenario: User tries to fetch their profile
+  Given I am authenticated as "john@example.com"
+  When I request my profile details
+  Then the response status should be 200
+  And the response should contain my email address
+```
+
+See? Even your manager could read that and understand what's being tested!
+
+## Setting Up Your Testing Arsenal
+
+First things first - let's get our tools ready. I'm assuming you've got Java and Maven installed (if not, grab a coffee and do that first ☕).
+
+### Project Dependencies
+
+Create a new Maven project and add these dependencies to your `pom.xml`:
+
+```xml
+<dependencies>
+    <!-- Cucumber - The BDD magic maker -->
+    <dependency>
+        <groupId>io.cucumber</groupId>
+        <artifactId>cucumber-java</artifactId>
+        <version>7.14.0</version>
+    </dependency>
+    <dependency>
+        <groupId>io.cucumber</groupId>
+        <artifactId>cucumber-junit</artifactId>
+        <version>7.14.0</version>
+    </dependency>
+
+    <!-- REST Assured - Makes API testing a breeze -->
+    <dependency>
+        <groupId>io.rest-assured</groupId>
+        <artifactId>rest-assured</artifactId>
+        <version>5.3.0</version>
+    </dependency>
+
+    <!-- JSON processing (trust me, you'll need this) -->
+    <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>2.15.2</version>
+    </dependency>
+</dependencies>
+```
+
+### Project Structure
+
+Here's how I like to organize my API testing projects:
+
+```
+src/test/
+├── java/
+│   ├── steps/          # Step definitions
+│   ├── hooks/          # Before/After hooks
+│   ├── utils/          # Helper classes
+│   └── runners/        # Test runners
+└── resources/
+    ├── features/       # Feature files
+    └── config/         # Configuration files
+```
+
+**Note:** This structure keeps things organized and makes it easy to find what you're looking for. Trust me, future-you will thank present-you for this!
+
+## Writing Your First API Test
+
+Let's create a real-world example - testing a user management API. Create a file called `user_management.feature` in `src/test/resources/features/`:
+
+```gherkin
+Feature: User Management API
+  As a developer
+  I want to ensure our user API works correctly
+  So that our application can manage users reliably
+
+  Background:
+    Given the API base URL is "https://api.example.com"
+    And I set the content type to "application/json"
+
+  Scenario: Successfully create a new user
+    When I send a POST request to "/users" with body:
+      """
+      {
+        "name": "Bharath Kumar",
+        "email": "bharath@example.com",
+        "role": "developer"
+      }
+      """
+    Then the response status code should be 201
+    And the response should contain "id"
+    And the response field "email" should be "bharath@example.com"
+
+  Scenario: Fetch existing user details
+    Given a user exists with ID "12345"
+    When I send a GET request to "/users/12345"
+    Then the response status code should be 200
+    And the response should match:
+      | field | value              |
+      | id    | 12345              |
+      | name  | Existing User      |
+      | email | existing@test.com  |
+
+  Scenario: Handle non-existent user gracefully
+    When I send a GET request to "/users/99999"
+    Then the response status code should be 404
+    And the response should contain message "User not found"
+```
+
+## Implementing Step Definitions
+
+Now for the fun part - making these scenarios actually do something! Create `UserApiSteps.java` in `src/test/java/steps/`:
+
+```java
+package steps;
+
+import io.cucumber.java.en.*;
+import io.cucumber.datatable.DataTable;
+import io.restassured.RestAssured;
+import io.restassured.response.Response;
+import io.restassured.specification.RequestSpecification;
+import org.junit.Assert;
+import java.util.Map;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
+
+public class UserApiSteps {
+
+    private RequestSpecification request;
+    private Response response;
+    private String baseUrl;
+
+    @Given("the API base URL is {string}")
+    public void setBaseUrl(String url) {
+        this.baseUrl = url;
+        RestAssured.baseURI = url;
+        request = given();
+    }
+
+    @Given("I set the content type to {string}")
+    public void setContentType(String contentType) {
+        request.header("Content-Type", contentType);
+    }
+
+    @Given("a user exists with ID {string}")
+    public void createUserWithId(String userId) {
+        // In a real scenario, you might create test data here
+        // For now, we'll assume the user exists
+        System.out.println("Assuming user " + userId + " exists");
+    }
+
+    @When("I send a POST request to {string} with body:")
+    public void sendPostRequest(String endpoint, String body) {
+        response = request
+            .body(body)
+            .when()
+            .post(endpoint);
+    }
+
+    @When("I send a GET request to {string}")
+    public void sendGetRequest(String endpoint) {
+        response = request
+            .when()
+            .get(endpoint);
+    }
+
+    @Then("the response status code should be {int}")
+    public void verifyStatusCode(int expectedStatus) {
+        response.then().statusCode(expectedStatus);
+    }
+
+    @Then("the response should contain {string}")
+    public void verifyResponseContains(String expectedField) {
+        response.then().body(expectedField, notNullValue());
+    }
+
+    @Then("the response field {string} should be {string}")
+    public void verifyFieldValue(String field, String expectedValue) {
+        response.then().body(field, equalTo(expectedValue));
+    }
+
+    @Then("the response should contain message {string}")
+    public void verifyErrorMessage(String expectedMessage) {
+        String actualMessage = response.jsonPath().getString("message");
+        Assert.assertEquals(expectedMessage, actualMessage);
+    }
+
+    @Then("the response should match:")
+    public void verifyResponseMatches(DataTable dataTable) {
+        Map<String, String> expectedData = dataTable.asMap(String.class, String.class);
+
+        for (Map.Entry<String, String> entry : expectedData.entrySet()) {
+            response.then().body(entry.getKey(), equalTo(entry.getValue()));
+        }
+    }
+}
+```
+
+## Advanced Techniques: Making Your Tests Smarter
+
+### Using Hooks for Setup and Cleanup
+
+Honestly, copy-pasting setup code in every test is a pain. Let's use hooks! Create `ApiHooks.java`:
+
+```java
+package hooks;
+
+import io.cucumber.java.Before;
+import io.cucumber.java.After;
+import io.cucumber.java.Scenario;
+import io.restassured.RestAssured;
+import io.restassured.filter.log.RequestLoggingFilter;
+import io.restassured.filter.log.ResponseLoggingFilter;
+
+public class ApiHooks {
+
+    @Before
+    public void setUp(Scenario scenario) {
+        System.out.println("Starting scenario: " + scenario.getName());
+
+        // Enable request/response logging for debugging
+        RestAssured.filters(
+            new RequestLoggingFilter(),
+            new ResponseLoggingFilter()
+        );
+
+        // Set default timeout
+        RestAssured.config().getHttpClientConfig()
+            .setParam("http.connection.timeout", 5000);
+    }
+
+    @After
+    public void tearDown(Scenario scenario) {
+        if (scenario.isFailed()) {
+            // You could capture additional debugging info here
+            System.err.println("Scenario failed: " + scenario.getName());
+        }
+
+        // Clean up any test data if needed
+        RestAssured.reset();
+    }
+}
+```
+
+### Environment-Specific Configuration
+
+Here's a pro tip: never hardcode URLs! Create a configuration utility:
+
+```java
+package utils;
+
+import java.io.InputStream;
+import java.util.Properties;
+
+public class ConfigReader {
+    private static Properties properties = new Properties();
+
+    static {
+        String env = System.getProperty("env", "dev");
+        String configFile = "config/" + env + ".properties";
+
+        try (InputStream input = ConfigReader.class
+                .getClassLoader()
+                .getResourceAsStream(configFile)) {
+            properties.load(input);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load config: " + configFile);
+        }
+    }
+
+    public static String get(String key) {
+        return properties.getProperty(key);
+    }
+}
+```
+
+Then create environment-specific property files in `src/test/resources/config/`:
+
+```properties
+# dev.properties
+api.base.url=https://dev-api.example.com
+api.timeout=5000
+
+# prod.properties
+api.base.url=https://api.example.com
+api.timeout=3000
+```
+
+## Running Your Tests
+
+Create a test runner class:
+
+```java
+package runners;
+
+import io.cucumber.junit.Cucumber;
+import io.cucumber.junit.CucumberOptions;
+import org.junit.runner.RunWith;
+
+@RunWith(Cucumber.class)
+@CucumberOptions(
+    features = "src/test/resources/features",
+    glue = {"steps", "hooks"},
+    plugin = {
+        "pretty",
+        "html:target/cucumber-reports",
+        "json:target/cucumber-reports/cucumber.json",
+        "junit:target/cucumber-reports/cucumber.xml"
+    },
+    tags = "@smoke or @regression"
+)
+public class TestRunner {
+}
+```
+
+Now you can run your tests with:
+
+```bash
+# Run all tests
+mvn test
+
+# Run specific environment
+mvn test -Denv=prod
+
+# Run specific tags
+mvn test -Dcucumber.filter.tags="@smoke"
+```
+
+## Best Practices I've Learned the Hard Way
+
+1. **Keep scenarios independent** - Each test should be able to run on its own. Don't rely on the order of execution!
+
+2. **Use meaningful tag names** - `@smoke`, `@regression`, `@critical` are better than `@test1`, `@test2`
+
+3. **Avoid hardcoded test data** - Use data tables or external files for test data:
+
+```gherkin
+Scenario Outline: Test multiple users
+  When I create a user with name "<name>" and email "<email>"
+  Then the response should be successful
+
+  Examples:
+    | name     | email              |
+    | John Doe | john@example.com   |
+    | Jane Doe | jane@example.com   |
+```
+
+4. **Handle authentication properly** - Create a reusable authentication step:
+
+```java
+@Given("I am authenticated as {string}")
+public void authenticate(String username) {
+    String token = AuthHelper.getTokenFor(username);
+    request.header("Authorization", "Bearer " + token);
+}
+```
+
+5. **Make error messages helpful** - When a test fails, the message should tell you exactly what went wrong:
+
+```java
+Assert.assertEquals(
+    "Expected user email to be " + expected + " but was " + actual,
+    expected,
+    actual
+);
+```
+
+## CI/CD Integration
+
+Want to run these tests in your pipeline? Here's a GitHub Actions example:
+
+```yaml
+name: API Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+
+      - name: Run API Tests
+        run: mvn test -Denv=${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+
+      - name: Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: cucumber-reports
+          path: target/cucumber-reports/
+```
+
+## Common Pitfalls and How to Avoid Them
+
+1. **"It works on my machine!"** - Always test against a stable environment, not localhost
+
+2. **Flaky tests** - If a test fails randomly, it's usually due to:
+
+   - Timing issues (add proper waits)
+   - Test data dependencies (use fresh data)
+   - External service dependencies (mock when possible)
+
+3. **Overly complex scenarios** - If you need 20 steps to test something, break it down!
+
+4. **Not cleaning up test data** - Always clean up after yourself:
+
+```java
+@After("@creates-data")
+public void cleanupTestData() {
+    TestDataCleaner.deleteCreatedUsers();
+}
+```
+
+## Wrapping Up
+
+API testing with Cucumber BDD has transformed how I approach test automation. The combination of readable scenarios and powerful REST Assured capabilities makes it a winning combo for any project.
+
+Remember these key takeaways:
+
+1. **Write scenarios first** - Think about what you're testing before how
+2. **Keep it simple** - Complex tests are hard to maintain
+3. **Collaborate** - Share feature files with your team for feedback
+4. **Automate everything** - From test execution to reporting
+
+Got questions about API testing with Cucumber? Drop a comment below! And if you found this helpful, share it with your team - let's make API testing less painful for everyone! 🚀
+
+---
+
+**Further Reading:**
+
+- [Cucumber Documentation](https://cucumber.io/docs/)
+- [REST Assured Deep Dive](https://rest-assured.io/)
+- My post on [Essential Testing Concepts](https://revanab.com/blog/essential-testing-concepts)
+
+Happy testing! 👍
